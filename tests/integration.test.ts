@@ -256,12 +256,12 @@ describe("chaîne complète — page Liste, voie DOM", () => {
   it("place les EXDATE sur les seules séances qui traversent une date exclue", () => {
     const withExdate = events.filter((e) => e.exdate).map((e) => `${e.summary} @${e.dtstart} → ${e.exdate}`);
     expect(withExdate.sort()).toEqual([
-      "MAT 1600-A Algèbre linéaire (TH) @20260831T083000 → 20260907T083000,20261005T083000,20261012T083000",
-      "STT 1700-A Introduction à la statistique (TH) @20260831T133000 → 20260907T133000,20261005T133000,20261012T133000",
-      "STT 1700-A103 Introduction à la statistique (TP) @20260909T133000 → 20260930T133000",
+      "MAT1600-A — Théorie @20260831T083000 → 20260907T083000,20261005T083000,20261012T083000",
+      "STT1700-A — Théorie @20260831T133000 → 20260907T133000,20261005T133000,20261012T133000",
+      "STT1700-A103 — Travaux pratiques @20260909T133000 → 20260930T133000",
     ]);
     // Le TP du vendredi ne croise aucune exclusion : aucune EXDATE.
-    const friday = events.filter((e) => e.summary.includes("(TP)") && e.summary.includes("MAT 1600"));
+    const friday = events.filter((e) => e.summary === "MAT1600-A102 — Travaux pratiques");
     expect(friday).toHaveLength(2);
     expect(friday.every((e) => e.exdate === "")).toBe(true);
   });
