@@ -16,6 +16,7 @@ import { buildTodayView, type TodayItem, type TodayView } from "../core/today";
 import {
   componentName,
   courseColors,
+  dayMonthShort,
   daysUntil,
   formatDaysUntil,
   formatLocation,
