@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { Schedule } from "../src/core/model";
 import { expandSchedule } from "../src/core/expand";
 import {
+  compactCode,
+  courseSummary,
   escapeText,
+  examSummary,
   examUid,
   foldLine,
   formatDtstamp,
+  formatLocation,
   generateIcs,
   meetingUid,
   torontoLocalToUtc,
@@ -27,7 +31,8 @@ const fixture: Schedule = {
       component: "TH",
       meetings: [
         { weekday: 1, start: "08:30", end: "10:30", location: "AA-1360", dateStart: "2026-09-07", dateEnd: "2026-09-28" },
-        { weekday: 3, start: "13:30", end: "15:30", location: "AA-1360", dateStart: "2026-09-07", dateEnd: "2026-09-30" },
+        // Local tel que Synchro l'écrit vraiment : deux espaces, numéro civique.
+        { weekday: 3, start: "13:30", end: "15:30", location: "B-0215  Pav. 3200 J.-Brillant", dateStart: "2026-09-07", dateEnd: "2026-09-30" },
       ],
     },
     {
@@ -296,24 +301,137 @@ describe("generateIcs — structure", () => {
   it("échappe la virgule d'un local et le point-virgule d'une note", () => {
     expect(lines).toContain("LOCATION:Pavillon André-Aisenstadt\\, salle 3195");
     expect(lines.some((l) => l.includes("calculatrice\\; manuel"))).toBe(true);
-    expect(lines.some((l) => l.startsWith("DESCRIPTION:Théorie — section A01\\n"))).toBe(true);
+    expect(lines.some((l) => l.startsWith("DESCRIPTION:Mécanique classique\\n"))).toBe(true);
   });
 
-  it("étiquette et décrit les séances", () => {
+  it("étiquette et décrit les séances (v2 §9.3)", () => {
     const mat = events.find((e) => prop(e, "UID")!.value.startsWith("A26-MAT1400-A-TH-1-"))!;
-    expect(prop(mat, "SUMMARY")!.value).toBe("MAT 1400-A Calcul 1 (TH)");
+    expect(prop(mat, "SUMMARY")!.value).toBe("MAT1400-A — Théorie");
     expect(prop(mat, "LOCATION")!.value).toBe("AA-1360");
-    expect(prop(mat, "DESCRIPTION")!.value).toBe("Théorie — section A — classe nº 12345");
+    expect(prop(mat, "DESCRIPTION")!.value).toBe("Calcul 1\\nclasse nº 12345");
+    expect(prop(mat, "CATEGORIES")!.value).toBe("Cours");
+    // Volet en toutes lettres, et le sigle perd son espace.
+    const ift = events.find((e) => prop(e, "UID")!.value.startsWith("A26-IFT1015-B-TP-"))!;
+    expect(prop(ift, "SUMMARY")!.value).toBe("IFT1015-B — Travaux pratiques");
+    // Sans nº de classe : la description se réduit au titre.
+    expect(prop(ift, "DESCRIPTION")!.value).toBe("Programmation 1");
   });
 
-  it("étiquette les examens", () => {
-    const summaries = events.filter((e) => !prop(e, "RRULE")).map((e) => prop(e, "SUMMARY")!.value);
-    expect(summaries).toEqual(["MAT 1400 — Examen intra", "PHY 1441 — Examen final"]);
+  it("normalise le local du pavillon dans le VEVENT", () => {
+    const mer = events.find((e) => prop(e, "UID")!.value.startsWith("A26-MAT1400-A-TH-3-"))!;
+    expect(prop(mer, "LOCATION")!.value).toBe("B-0215\\, Pavillon J.-Brillant");
+  });
+
+  it("étiquette les examens (v2 §9.3)", () => {
+    const exams = events.filter((e) => !prop(e, "RRULE"));
+    expect(exams.map((e) => prop(e, "SUMMARY")!.value)).toEqual([
+      "MAT1400 — Examen intra",
+      "PHY1441 — Examen final",
+    ]);
+    for (const e of exams) expect(prop(e, "CATEGORIES")!.value).toBe("Examen");
     const other = generateIcs(
       { ...fixture, courses: [], exams: [{ ...fixture.exams[0]!, kind: "autre", label: "Test 2" }] },
       { excludedDates, dtstamp },
     );
-    expect(prop(parseEvents(other)[0]!, "SUMMARY")!.value).toBe("MAT 1400 — Test 2");
+    expect(prop(parseEvents(other)[0]!, "SUMMARY")!.value).toBe("MAT1400 — Test 2");
+  });
+});
+
+describe("libellés et locaux v2", () => {
+  it("compacte le sigle", () => {
+    expect(compactCode("MAT 1400")).toBe("MAT1400");
+    expect(compactCode("MAT1400")).toBe("MAT1400");
+  });
+
+  it("compose le SUMMARY d'une séance et d'un examen", () => {
+    expect(courseSummary(fixture.courses[0]!)).toBe("MAT1400-A — Théorie");
+    expect(courseSummary({ ...fixture.courses[0]!, component: "LAB" })).toBe("MAT1400-A — Laboratoire");
+    expect(courseSummary({ ...fixture.courses[0]!, component: "AUTRE" })).toBe("MAT1400-A — Autre");
+    // Section absente : pas de tiret orphelin.
+    expect(courseSummary({ ...fixture.courses[0]!, section: "" })).toBe("MAT1400 — Théorie");
+    expect(examSummary(fixture.exams[0]!)).toBe("MAT1400 — Examen intra");
+    expect(examSummary({ ...fixture.exams[0]!, kind: "final" })).toBe("MAT1400 — Examen final");
+    expect(examSummary({ ...fixture.exams[0]!, kind: "autre", label: "" })).toBe("MAT1400 — Examen");
+  });
+
+  it("retire « Pav. » et le numéro civique du local", () => {
+    // Chaînes relevées telles quelles dans tests/fixtures/liste-A26.txt.
+    expect(formatLocation("B-0215  Pav. 3200 J.-Brillant")).toBe("B-0215, Pavillon J.-Brillant");
+    expect(formatLocation("E-310 Pav. Roger-Gaudry")).toBe("E-310, Pavillon Roger-Gaudry");
+    expect(formatLocation("S1-151 Pav. Jean Coutu")).toBe("S1-151, Pavillon Jean Coutu");
+  });
+
+  it("laisse intact ce qui ne suit pas le motif", () => {
+    expect(formatLocation("En ligne")).toBe("En ligne");
+    expect(formatLocation("AA-1360")).toBe("AA-1360");
+    expect(formatLocation("À communiquer")).toBe("À communiquer");
+    expect(formatLocation("  Z-110  ")).toBe("Z-110");
+    expect(formatLocation("")).toBe("");
+  });
+});
+
+describe("rappels VALARM (v2 §9.2)", () => {
+  /** Les VALARM d'un VEVENT, sous forme de paires [TRIGGER, DESCRIPTION]. */
+  const alarmsOf = (text: string, uidPrefix: string): [string, string][] => {
+    const lines = unfold(text);
+    const out: [string, string][] = [];
+    let inTarget = false;
+    let trigger = "";
+    for (const line of lines) {
+      if (line.startsWith("UID:")) inTarget = line.slice(4).startsWith(uidPrefix);
+      if (!inTarget) continue;
+      if (line.startsWith("TRIGGER:")) trigger = line.slice(8);
+      if (line.startsWith("DESCRIPTION:") && trigger) {
+        out.push([trigger, line.slice(12)]);
+        trigger = "";
+      }
+    }
+    return out;
+  };
+
+  it("pose deux rappels sur un examen par défaut, aucun sur un cours", () => {
+    expect(alarmsOf(ics, "A26-MAT1400-examen-")).toEqual([
+      ["-PT24H", "MAT1400 — Examen intra"],
+      ["-PT1H", "MAT1400 — Examen intra"],
+    ]);
+    expect(alarmsOf(ics, "A26-MAT1400-A-TH-1-")).toEqual([]);
+  });
+
+  it("pose un rappel de 15 min sur les cours quand on le demande", () => {
+    const withCourses = generateIcs(fixture, { excludedDates, dtstamp, alarms: { courses: true } });
+    expect(alarmsOf(withCourses, "A26-MAT1400-A-TH-1-")).toEqual([["-PT15M", "MAT1400-A — Théorie"]]);
+    // `alarms` partiel : `exams` garde sa valeur par défaut.
+    expect(alarmsOf(withCourses, "A26-MAT1400-examen-")).toHaveLength(2);
+  });
+
+  it("n'écrit aucun VALARM quand tout est désactivé", () => {
+    const none = generateIcs(fixture, { excludedDates, dtstamp, alarms: { exams: false, courses: false } });
+    expect(none).not.toContain("BEGIN:VALARM");
+    expect(none).not.toContain("TRIGGER:");
+  });
+
+  it("place les VALARM à l'intérieur du VEVENT, jamais après", () => {
+    const withCourses = generateIcs(fixture, { excludedDates, dtstamp, alarms: { courses: true } });
+    const lines = unfold(withCourses);
+    let depth = 0;
+    for (const line of lines) {
+      if (line === "BEGIN:VEVENT") depth++;
+      if (line === "BEGIN:VALARM") expect(depth).toBe(1);
+      if (line === "END:VALARM") expect(depth).toBe(1);
+      if (line === "END:VEVENT") depth--;
+    }
+    expect(depth).toBe(0);
+    // Chaque VALARM est clos avant la fin de son VEVENT.
+    expect(withCourses.match(/BEGIN:VALARM/g)!.length).toBe(withCourses.match(/END:VALARM/g)!.length);
+    expect(withCourses).not.toContain("END:VEVENT\r\nEND:VALARM");
+  });
+
+  it("reste conforme au pliage et au CRLF avec les rappels activés", () => {
+    const withCourses = generateIcs(fixture, { excludedDates, dtstamp, alarms: { courses: true } });
+    expect(withCourses.replace(/\r\n/g, "")).not.toMatch(/[\r\n]/);
+    for (const p of withCourses.split("\r\n")) {
+      expect(new TextEncoder().encode(p).length).toBeLessThanOrEqual(75);
+    }
   });
 });
 
@@ -384,24 +502,41 @@ describe("generateIcs — identité et déterminisme", () => {
   });
 });
 
+// Table explicite entre les libellés d'`expand.ts` (popup, conflits) et ceux de
+// l'ICS v2. Écrite à la main plutôt que calculée par `courseSummary` : un test
+// qui appelle la fonction qu'il vérifie ne prouve rien.
+const V2_SUMMARY: Record<string, string> = {
+  "MAT 1400-A Calcul 1 (TH)": "MAT1400-A — Théorie",
+  "IFT 1015-B Programmation 1 (TP)": "IFT1015-B — Travaux pratiques",
+  "PHY 1441-A01 Mécanique classique (TH)": "PHY1441-A01 — Théorie",
+  "MAT 1400 — Examen intra": "MAT1400 — Examen intra",
+  "PHY 1441 — Examen final": "PHY1441 — Examen final",
+};
+const V2_LOCATION: Record<string, string> = {
+  "B-0215  Pav. 3200 J.-Brillant": "B-0215, Pavillon J.-Brillant",
+};
+
+/** Occurrence d'`expandSchedule` traduite dans les conventions de l'ICS v2. */
+function asV2(o: { date: string; start: string; end: string; label: string; location: string }): Flat {
+  const label = V2_SUMMARY[o.label];
+  if (label === undefined) throw new Error(`Libellé non traduit dans V2_SUMMARY : ${o.label}`);
+  return { date: o.date, start: o.start, end: o.end, label, location: V2_LOCATION[o.location] ?? o.location };
+}
+
 describe("generateIcs — ré-analyse (DTSTART + RRULE − EXDATE ≡ expandSchedule)", () => {
   it("représente exactement chaque occurrence attendue", () => {
-    const expected: Flat[] = expandSchedule(fixture, { excludedDates })
-      .map(({ date, start, end, label, location }) => ({ date, start, end, label, location }))
-      .sort(byKey);
+    const expected: Flat[] = expandSchedule(fixture, { excludedDates }).map(asV2).sort(byKey);
     const actual = parseEvents(ics).flatMap(flattenEvent).sort(byKey);
     expect(actual).toEqual(expected);
     // Garde-fou : la série de PHY traverse le retour à l'heure normale et se
     // termine par un cours du soir le 10 décembre.
-    expect(actual.filter((o) => o.label.startsWith("PHY 1441-A01")).at(-1)).toMatchObject({ date: "2026-12-10", start: "19:00" });
-    expect(actual.filter((o) => o.label.startsWith("PHY 1441-A01"))).toHaveLength(15 - 2);
+    expect(actual.filter((o) => o.label.startsWith("PHY1441-A01")).at(-1)).toMatchObject({ date: "2026-12-10", start: "19:00" });
+    expect(actual.filter((o) => o.label.startsWith("PHY1441-A01"))).toHaveLength(15 - 2);
   });
 
   it("reste exact sans aucune exclusion", () => {
     const none = generateIcs(fixture, { excludedDates: [], dtstamp });
-    const expected = expandSchedule(fixture, { excludedDates: [] })
-      .map(({ date, start, end, label, location }) => ({ date, start, end, label, location }))
-      .sort(byKey);
+    const expected = expandSchedule(fixture, { excludedDates: [] }).map(asV2).sort(byKey);
     expect(parseEvents(none).flatMap(flattenEvent).sort(byKey)).toEqual(expected);
   });
 });

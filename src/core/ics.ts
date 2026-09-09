@@ -7,13 +7,23 @@
 // les UID sont dérivés des données. Ré-importer remplace, ne duplique pas.
 
 import type { Course, Exam, Meeting, Schedule } from "./model";
-import { courseLabel, dateToUtc, examLabel, meetingDates } from "./expand";
+import { dateToUtc, meetingDates } from "./expand";
 
 export const TZID = "America/Toronto";
 export const PRODID = "-//synchro-calendrier//UdeM//FR";
 export const UID_DOMAIN = "synchro-calendrier";
 /** Longueur maximale d'une ligne physique, en octets, CRLF exclu (RFC 5545 §3.1). */
 export const MAX_LINE_OCTETS = 75;
+
+/** Rappels à poser sur les événements (spec v2 §9.2). */
+export interface AlarmOptions {
+  /** Deux rappels : 24 h puis 1 h avant. Activé par défaut. */
+  exams: boolean;
+  /** Un rappel 15 min avant chaque séance. Désactivé par défaut. */
+  courses: boolean;
+}
+
+export const DEFAULT_ALARMS: AlarmOptions = { exams: true, courses: false };
 
 export interface IcsOptions {
   /** Dates "AAAA-MM-JJ" sans séance (deviennent des EXDATE). */
@@ -22,6 +32,8 @@ export interface IcsOptions {
   dtstamp: string;
   /** Nom du calendrier (X-WR-CALNAME). Défaut : "UdeM — <term.label>". */
   calName?: string;
+  /** Rappels. Défaut : `DEFAULT_ALARMS`. */
+  alarms?: Partial<AlarmOptions>;
 }
 
 const COMPONENT_NAMES: Record<Course["component"], string> = {
@@ -30,6 +42,50 @@ const COMPONENT_NAMES: Record<Course["component"], string> = {
   LAB: "Laboratoire",
   AUTRE: "Autre",
 };
+
+// ---------------------------------------------------------------------------
+// Libellés v2
+//
+// Volontairement locaux à ce module, et non repris de `expand.ts` : les
+// libellés d'`expand.ts` (« MAT 1400-A Calcul 1 (TH) ») servent au détecteur de
+// conflits et à l'affichage du popup, où le titre du cours est utile. Dans un
+// agenda, le titre encombre la tuile et le sigle sans espace se cherche mieux.
+// Une autre session écrit un module `format/` avec la même règle de local :
+// à dédoublonner ensuite, pas maintenant (aucune dépendance croisée).
+
+/** "MAT 1400" → "MAT1400". Le modèle promet déjà la forme compacte ; on la garantit. */
+export function compactCode(code: string): string {
+  return code.replace(/\s+/g, "");
+}
+
+/** `MAT1400-A — Théorie`. */
+export function courseSummary(course: Course): string {
+  const code = compactCode(course.code);
+  const head = course.section ? `${code}-${course.section}` : code;
+  return `${head} — ${COMPONENT_NAMES[course.component]}`;
+}
+
+/** `MAT1400 — Examen intra` / `— Examen final` / le `label` sinon. */
+export function examSummary(exam: Exam): string {
+  const kind =
+    exam.kind === "intra" ? "Examen intra"
+    : exam.kind === "final" ? "Examen final"
+    : exam.label || "Examen";
+  return `${compactCode(exam.courseCode)} — ${kind}`;
+}
+
+/**
+ * « B-0215  Pav. 3200 J.-Brillant » → « B-0215, Pavillon J.-Brillant ».
+ * Le numéro civique (3200) est du bruit dans un agenda. « En ligne » et tout
+ * texte qui ne suit pas ce motif passent inchangés : mieux vaut recopier ce que
+ * Synchro affiche que deviner.
+ */
+export function formatLocation(location: string): string {
+  const raw = location.trim();
+  const m = /^(.+?)\s+Pav\.\s+(?:\d+\s+)?(.+)$/.exec(raw);
+  if (!m) return raw;
+  return `${m[1]!.trim()}, Pavillon ${m[2]!.trim()}`;
+}
 
 // ---------------------------------------------------------------------------
 // Utilitaires texte
@@ -193,13 +249,31 @@ function vtimezone(): string[] {
   ];
 }
 
+/**
+ * Titre du cours en première ligne ; le nº de classe et la remarque de séance,
+ * s'ils existent, en deuxième. Le volet et la section sont déjà dans le SUMMARY,
+ * les répéter ici n'apprendrait rien.
+ */
 function courseDescription(course: Course, meeting: Meeting): string {
-  const parts = [COMPONENT_NAMES[course.component]];
-  if (course.section) parts.push(`section ${course.section}`);
-  if (course.classNumber) parts.push(`classe nº ${course.classNumber}`);
-  let text = parts.join(" — ");
-  if (meeting.note) text += `\n${meeting.note}`;
-  return text;
+  const extras: string[] = [];
+  if (course.classNumber) extras.push(`classe nº ${course.classNumber}`);
+  if (meeting.note) extras.push(meeting.note);
+  return extras.length > 0 ? `${course.title}\n${extras.join(" — ")}` : course.title;
+}
+
+/**
+ * Bloc VALARM d'affichage. `TRIGGER` est une durée négative relative au DTSTART
+ * (RFC 5545 §3.8.6.3) ; `DESCRIPTION` reprend le SUMMARY, que les clients
+ * affichent tel quel dans la notification.
+ */
+function valarm(trigger: string, description: string): string[] {
+  return [
+    "BEGIN:VALARM",
+    "ACTION:DISPLAY",
+    `TRIGGER:${trigger}`,
+    `DESCRIPTION:${escapeText(description)}`,
+    "END:VALARM",
+  ];
 }
 
 /**
@@ -214,6 +288,7 @@ function meetingEvent(
   meeting: Meeting,
   excluded: Set<string>,
   dtstamp: string,
+  alarms: AlarmOptions,
 ): string[] {
   const dates = meetingDates(meeting);
   const firstIndex = dates.findIndex((d) => !excluded.has(d));
@@ -237,26 +312,33 @@ function meetingEvent(
   if (exdates.length > 0) {
     lines.push(`EXDATE;TZID=${TZID}:${exdates.map((d) => toIcsLocal(d, meeting.start)).join(",")}`);
   }
+  const summary = courseSummary(course);
   lines.push(
-    `SUMMARY:${escapeText(courseLabel(course))}`,
-    `LOCATION:${escapeText(meeting.location)}`,
+    `SUMMARY:${escapeText(summary)}`,
+    `LOCATION:${escapeText(formatLocation(meeting.location))}`,
     `DESCRIPTION:${escapeText(courseDescription(course, meeting))}`,
-    "END:VEVENT",
+    "CATEGORIES:Cours",
   );
+  if (alarms.courses) lines.push(...valarm("-PT15M", summary));
+  lines.push("END:VEVENT");
   return lines;
 }
 
-function examEvent(termCode: string, exam: Exam, dtstamp: string): string[] {
+function examEvent(termCode: string, exam: Exam, dtstamp: string, alarms: AlarmOptions): string[] {
+  const summary = examSummary(exam);
   const lines = [
     "BEGIN:VEVENT",
     `UID:${examUid(termCode, exam)}`,
     `DTSTAMP:${dtstamp}`,
     `DTSTART;TZID=${TZID}:${toIcsLocal(exam.date, exam.start)}`,
     `DTEND;TZID=${TZID}:${toIcsLocal(exam.date, exam.end)}`,
-    `SUMMARY:${escapeText(examLabel(exam))}`,
-    `LOCATION:${escapeText(exam.location)}`,
+    `SUMMARY:${escapeText(summary)}`,
+    `LOCATION:${escapeText(formatLocation(exam.location))}`,
   ];
   if (exam.label) lines.push(`DESCRIPTION:${escapeText(exam.label)}`);
+  lines.push("CATEGORIES:Examen");
+  // Deux rappels : la veille pour réviser, une heure avant pour partir.
+  if (alarms.exams) lines.push(...valarm("-PT24H", summary), ...valarm("-PT1H", summary));
   lines.push("END:VEVENT");
   return lines;
 }
@@ -270,6 +352,7 @@ export function generateIcs(schedule: Schedule, opts: IcsOptions): string {
   const excluded = new Set(opts.excludedDates);
   const termCode = schedule.term.code;
   const calName = opts.calName ?? `UdeM — ${schedule.term.label}`;
+  const alarms: AlarmOptions = { ...DEFAULT_ALARMS, ...opts.alarms };
 
   const logical: string[] = [
     "BEGIN:VCALENDAR",
@@ -284,11 +367,11 @@ export function generateIcs(schedule: Schedule, opts: IcsOptions): string {
 
   for (const course of schedule.courses) {
     for (const meeting of course.meetings) {
-      logical.push(...meetingEvent(termCode, course, meeting, excluded, dtstamp));
+      logical.push(...meetingEvent(termCode, course, meeting, excluded, dtstamp, alarms));
     }
   }
   for (const exam of schedule.exams) {
-    logical.push(...examEvent(termCode, exam, dtstamp));
+    logical.push(...examEvent(termCode, exam, dtstamp, alarms));
   }
   logical.push("END:VCALENDAR");
 
