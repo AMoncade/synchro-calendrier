@@ -9,4 +9,12 @@
 - Hôte Synchro confirmé dans Chrome : `academique-dmz.synchro.umontreal.ca/psp/acprpr9/`.
 - Trois sessions parallèles briefées (worktrees `calendar-udem`, `ics-generator`,
   `conflicts`) sur le noyau pur ; l'intégratrice garde capture, parser, docs.
+- Mergé sur `main` : `calendar-udem` (d2812dc → db683e5, 21 tests) et `conflicts`
+  (ab94d86 → 2348276, 46 tests) ; gate vert sur main à chaque merge (`npx vitest run`,
+  `npm run build`). `ics-generator` en cours : 4 fichiers non commités, 1 test rouge
+  (exclusion) signalé à la session.
+- Calendrier universitaire : sources = PDF du registraire 2026-2027 et calendrier FAS
+  A26-H27, consultés le 2026-09-09. Les dates FAS (fin des cours, examens, 5 octobre)
+  sont une lecture de grille visuelle du PDF : **à faire confirmer par un humain avant
+  la 1.0**.
 - Reste : capture des fixtures Horaire/Examens (connexion Synchro requise), parser.
