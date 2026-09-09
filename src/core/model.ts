@@ -83,3 +83,40 @@ export interface Occurrence {
   end: string;
   location: string;
 }
+
+// ---------------------------------------------------------------------------
+// Capture brute : ce que content/extract.ts tire du DOM de Synchro, avant tout
+// parsing. Uniquement du texte, tel qu'affiché (voir docs/ARCHITECTURE.md §5).
+// ---------------------------------------------------------------------------
+
+/**
+ * Une rangée du tableau « Nº cours | Section | Volet | Jours et heures | Local |
+ * Enseignant | Dates début/fin | URL ». Les rangées de continuation ont
+ * classNumber/section/component vides et héritent de la rangée précédente.
+ * Sur la page Centre étudiant, `dates`, `instructor` et `url` sont vides.
+ */
+export interface RawMeetingRow {
+  classNumber: string; // "1490" ou ""
+  section: string; // "A", "A102" ou ""
+  component: string; // "TH", "TP", "EXI", "EXF" ou ""
+  daysTimes: string; // "Ma 08:30 - 10:29", "À communiquer 08:30 - 10:29"
+  location: string; // "E-310 Pav. Roger-Gaudry", "En ligne"
+  instructor: string; // "Nom Prénom", "À communiquer" ou ""
+  dates: string; // "31/08/2026 - 16/10/2026", "26/10/2026" ou ""
+  url: string; // "SGA" ou ""
+}
+
+/** Un bloc de cours : titre `<h2>` + rangées + remarques. */
+export interface RawCourseBlock {
+  title: string; // "MAT 1400 - Calcul 1" (liste) ou "MAT 1400" (centre étudiant)
+  rows: RawMeetingRow[];
+  notes: string[];
+}
+
+export interface RawCapture {
+  /** Page d'origine : "liste" = Votre horaire cours (complet), "centre" = Centre étudiant (résumé). */
+  source: "liste" | "centre";
+  /** "Automne 2026 | Premier cycle | Université de Montréal" ou "" si absent. */
+  termLabel: string;
+  blocks: RawCourseBlock[];
+}
