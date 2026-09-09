@@ -6,7 +6,7 @@
       "title": "MAT 1400 - Calcul 1",
       "status": ["Inscrit", "4.00", "Littéral", "", "1-190-1-0 Cours obligatoire", ""],
       "rows": [
-        ["1490", "A", "TH", "Ma 08:30 - 10:29", "E-310 Pav. Roger-Gaudry", "Enseignant Un", "31/08/2026 - 16/10/2026", "SGA"],
+        ["1490", "A", "TH", "Ma 08:30 - 10:29", "E-310 Pav. Roger-Gaudry", "Enseignant Un", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "J 08:30 - 10:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Un", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "Ma 08:30 - 10:29", "E-310 Pav. Roger-Gaudry", "Enseignant Un", "26/10/2026 - 09/12/2026", ""],
         ["", "", "", "J 08:30 - 10:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Un", "26/10/2026 - 09/12/2026", ""],
@@ -25,7 +25,7 @@
     {
       "title": "MAT 1500 - Mathématiques discrètes",
       "rows": [
-        ["1571", "A", "TH", "Lun 10:30 - 12:29", "N-515 Pav. Roger-Gaudry", "Enseignant Deux", "31/08/2026 - 16/10/2026", "SGA"],
+        ["1571", "A", "TH", "Lun 10:30 - 12:29", "N-515 Pav. Roger-Gaudry", "Enseignant Deux", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "Mer 08:30 - 10:29", "B-0325 Pav. 3200 J.-Brillant", "Enseignant Deux", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "Lun 10:30 - 12:29", "N-515 Pav. Roger-Gaudry", "Enseignant Deux", "26/10/2026 - 09/12/2026", ""],
         ["", "", "", "Mer 08:30 - 10:29", "B-0325 Pav. 3200 J.-Brillant", "Enseignant Deux", "26/10/2026 - 09/12/2026", ""],
@@ -44,7 +44,7 @@
       "rows": [
         ["1578", "A102", "TP", "V 08:30 - 10:29", "B-4275 Pav. 3200 J.-Brillant", "À communiquer", "31/08/2026 - 09/10/2026", ""],
         ["", "", "", "V 08:30 - 10:29", "B-4275 Pav. 3200 J.-Brillant", "À communiquer", "26/10/2026 - 09/12/2026", ""],
-        ["12280", "A", "TH", "Lun 08:30 - 10:29", "P-310 Pav. Roger-Gaudry", "Enseignant Trois", "31/08/2026 - 16/10/2026", "SGA"],
+        ["12280", "A", "TH", "Lun 08:30 - 10:29", "P-310 Pav. Roger-Gaudry", "Enseignant Trois", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "À communiquer 08:30 - 10:29", "En ligne", "Enseignant Trois", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "Lun 08:30 - 10:29", "P-310 Pav. Roger-Gaudry", "Enseignant Trois", "26/10/2026 - 09/12/2026", ""],
         ["", "", "", "À communiquer 08:30 - 10:29", "En ligne", "Enseignant Trois", "26/10/2026 - 09/12/2026", ""],
@@ -56,7 +56,7 @@
     {
       "title": "STT 1700 - Introduction à la statistique",
       "rows": [
-        ["1628", "A", "TH", "Lun 13:30 - 15:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Quatre", "31/08/2026 - 16/10/2026", "SGA"],
+        ["1628", "A", "TH", "Lun 13:30 - 15:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Quatre", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "Ma 12:30 - 13:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Quatre", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "Lun 13:30 - 15:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Quatre", "26/10/2026 - 09/12/2026", ""],
         ["", "", "", "Ma 12:30 - 13:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Quatre", "26/10/2026 - 09/12/2026", ""],

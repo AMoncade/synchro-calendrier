@@ -352,7 +352,8 @@ function parseListeText(lines: string[]): RawCourseBlock[] {
       if (!row) continue;
       const next = lines[i + 1] ?? "";
       if (next && !isLabel(next) && !COURSE_TITLE_LINE.test(next) && next !== "Remarques cours") {
-        row[LABEL_TO_FIELD[line]] = normalizeSpaces(next);
+        // La colonne URL (icône « SGA ») ne porte aucune donnée d'horaire : ignorée.
+        if (line !== "URL") row[LABEL_TO_FIELD[line]] = normalizeSpaces(next);
         i++;
       }
     }
