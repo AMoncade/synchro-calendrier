@@ -87,28 +87,39 @@ export function monthName(month: number, style: NameStyle = "long"): string {
   return name;
 }
 
-/** « 2026-10-07 » → « mer. 7 oct. ». */
+/**
+ * Quantième du mois tel qu'on l'écrit en français : « 1er » pour le premier,
+ * le nombre nu ensuite. C'est l'usage de l'UdeM elle-même — le calendrier du
+ * registraire écrit « Mardi 1er septembre 2026 ». `Intl` en « fr-CA » rend
+ * « 1 » : c'est la seule divergence assumée entre notre sortie et la sienne,
+ * et `format.test.ts` la vérifie explicitement.
+ */
+export function dayOfMonth(day: number): string {
+  return day === 1 ? "1er" : String(day);
+}
+
+/** « 2026-10-07 » → « mer. 7 oct. » ; « 2026-12-01 » → « mar. 1er déc. ». */
 export function shortDate(date: string): string {
   const c = parseIsoDate(date);
-  return `${weekdayName(isoWeekday(date), "short")} ${c.day} ${monthName(c.month, "short")}`;
+  return `${weekdayName(isoWeekday(date), "short")} ${dayOfMonth(c.day)} ${monthName(c.month, "short")}`;
 }
 
 /** « 2026-09-09 » → « mercredi 9 septembre » (sans l'année). */
 export function longDate(date: string): string {
   const c = parseIsoDate(date);
-  return `${weekdayName(isoWeekday(date), "long")} ${c.day} ${monthName(c.month, "long")}`;
+  return `${weekdayName(isoWeekday(date), "long")} ${dayOfMonth(c.day)} ${monthName(c.month, "long")}`;
 }
 
 /** « 2026-09-09 » → « 9 sept. » (sans jour de semaine ni année). */
 export function dayMonthShort(date: string): string {
   const c = parseIsoDate(date);
-  return `${c.day} ${monthName(c.month, "short")}`;
+  return `${dayOfMonth(c.day)} ${monthName(c.month, "short")}`;
 }
 
 /** « 2026-09-09 » → « 9 septembre 2026 ». */
 export function dayMonthYear(date: string): string {
   const c = parseIsoDate(date);
-  return `${c.day} ${monthName(c.month, "long")} ${c.year}`;
+  return `${dayOfMonth(c.day)} ${monthName(c.month, "long")} ${c.year}`;
 }
 
 /**
@@ -120,11 +131,15 @@ export function daysUntil(dateIso: string, todayIso: string): number {
   return Math.round((civilToUtcMs(parseIsoDate(dateIso)) - civilToUtcMs(parseIsoDate(todayIso))) / DAY_MS);
 }
 
-/** 0 → « aujourd'hui », 1 → « demain », 5 → « dans 5 j », −3 → « il y a 3 j ». */
+/**
+ * 0 → « aujourd'hui », 1 → « demain », −1 → « hier »,
+ * 5 → « dans 5 j », −3 → « il y a 3 j ».
+ */
 export function formatDaysUntil(days: number): string {
   if (!Number.isInteger(days)) throw new RangeError(`Nombre de jours non entier : ${days}`);
   if (days === 0) return "aujourd'hui";
   if (days === 1) return "demain";
+  if (days === -1) return "hier";
   if (days > 1) return `dans ${days} j`;
   return `il y a ${-days} j`;
 }

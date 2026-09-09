@@ -11,6 +11,8 @@ import {
   courseColor,
   courseColors,
   dayMonthShort,
+  dayMonthYear,
+  dayOfMonth,
   daysUntil,
   formatClock,
   formatDaysUntil,
@@ -77,10 +79,24 @@ describe("dates civiles", () => {
   it("écrit les dates courtes et longues", () => {
     expect(shortDate("2026-10-07")).toBe("mer. 7 oct.");
     expect(shortDate("2026-09-09")).toBe("mer. 9 sept.");
-    expect(shortDate("2026-12-01")).toBe("mar. 1 déc.");
     expect(longDate("2026-09-09")).toBe("mercredi 9 septembre");
-    expect(longDate("2027-01-01")).toBe("vendredi 1 janvier");
     expect(dayMonthShort("2026-09-09")).toBe("9 sept.");
+    expect(dayMonthYear("2026-09-09")).toBe("9 septembre 2026");
+  });
+
+  it("écrit « 1er » pour le premier du mois, comme le fait l'UdeM", () => {
+    expect(dayOfMonth(1)).toBe("1er");
+    for (const day of [2, 9, 21, 31]) expect(dayOfMonth(day)).toBe(String(day));
+    // Le calendrier du registraire écrit « Mardi 1er septembre 2026 ».
+    expect(shortDate("2026-09-01")).toBe("mar. 1er sept.");
+    expect(shortDate("2026-12-01")).toBe("mar. 1er déc.");
+    expect(longDate("2027-01-01")).toBe("vendredi 1er janvier");
+    expect(longDate("2026-09-01")).toBe("mardi 1er septembre");
+    expect(dayMonthShort("2027-07-01")).toBe("1er juill.");
+    expect(dayMonthYear("2026-09-01")).toBe("1er septembre 2026");
+    // Le 11 et le 21 ne prennent pas d'ordinal : seul le premier en porte un.
+    expect(shortDate("2026-09-11")).toBe("ven. 11 sept.");
+    expect(shortDate("2026-09-21")).toBe("lun. 21 sept.");
   });
 
   // Garde-fou : la table de noms est écrite à la main pour que la chaîne
@@ -102,9 +118,26 @@ describe("dates civiles", () => {
       expect(WEEKDAYS_SHORT[i]).toBe(fmt({ weekday: "short" }, day));
       expect(WEEKDAYS_LONG[i]).toBe(fmt({ weekday: "long" }, day));
     }
-    expect(shortDate("2026-10-07")).toBe(
-      fmt({ weekday: "short", day: "numeric", month: "short" }, new Date(Date.UTC(2026, 9, 7, 12))),
-    );
+    // Les dates composées suivent Intl à l'identique, sauf le premier du mois :
+    // nous écrivons « 1er », Intl écrit « 1 ». C'est la seule divergence voulue,
+    // et elle est vérifiée ici plutôt que tolérée en silence.
+    for (const [year, month, day] of [
+      [2026, 9, 7], [2026, 7, 31], [2026, 11, 11], [2027, 0, 21],
+    ] as const) {
+      const at = new Date(Date.UTC(year, month, day, 12));
+      const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      expect(shortDate(iso)).toBe(fmt({ weekday: "short", day: "numeric", month: "short" }, at));
+      expect(longDate(iso)).toBe(fmt({ weekday: "long", day: "numeric", month: "long" }, at));
+    }
+    for (const [year, month] of [[2026, 8], [2027, 0], [2027, 6]] as const) {
+      const at = new Date(Date.UTC(year, month, 1, 12));
+      const iso = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const intlShort = fmt({ weekday: "short", day: "numeric", month: "short" }, at);
+      const intlLong = fmt({ weekday: "long", day: "numeric", month: "long" }, at);
+      expect(intlShort).toContain(" 1 ");
+      expect(shortDate(iso)).toBe(intlShort.replace(" 1 ", " 1er "));
+      expect(longDate(iso)).toBe(intlLong.replace(" 1 ", " 1er "));
+    }
   });
 
   it("compte les jours civils, jamais les heures", () => {
@@ -128,7 +161,8 @@ describe("dates civiles", () => {
     expect(formatDaysUntil(1)).toBe("demain");
     expect(formatDaysUntil(2)).toBe("dans 2 j");
     expect(formatDaysUntil(28)).toBe("dans 28 j");
-    expect(formatDaysUntil(-1)).toBe("il y a 1 j");
+    expect(formatDaysUntil(-1)).toBe("hier");
+    expect(formatDaysUntil(-2)).toBe("il y a 2 j");
     expect(formatDaysUntil(-3)).toBe("il y a 3 j");
     expect(() => formatDaysUntil(1.5)).toThrow(RangeError);
   });
@@ -177,7 +211,7 @@ describe("instants en heure de Montréal", () => {
     expect(relativeTime("2026-09-08T23:00:00.000Z", now)).toBe("il y a 23 h");
     // Au-delà de 24 h : la date, dans le fuseau de Montréal.
     expect(relativeTime("2026-09-08T22:16:00.000Z", now)).toBe("le 8 sept.");
-    expect(relativeTime("2026-07-01T15:00:00.000Z", now)).toBe("le 1 juill.");
+    expect(relativeTime("2026-07-01T15:00:00.000Z", now)).toBe("le 1er juill.");
     // Horloge en avance : jamais de durée négative.
     expect(relativeTime("2026-09-09T22:20:00.000Z", now)).toBe("à l'instant");
   });
@@ -185,6 +219,8 @@ describe("instants en heure de Montréal", () => {
   it("écrit la date complète pour l'infobulle", () => {
     expect(fullDateTime("2026-09-09T22:16:00.000Z")).toBe("mercredi 9 septembre 2026, 18 h 16");
     expect(fullDateTime("2026-12-31T05:00:00.000Z")).toBe("jeudi 31 décembre 2026, 0 h 00");
+    // L'ordinal remonte jusque dans l'infobulle.
+    expect(fullDateTime("2026-09-01T14:30:00.000Z")).toBe("mardi 1er septembre 2026, 10 h 30");
     // Même instant, écrit avec un décalage explicite : même sortie.
     expect(fullDateTime("2026-09-09T18:16:00.000-04:00")).toBe("mercredi 9 septembre 2026, 18 h 16");
   });

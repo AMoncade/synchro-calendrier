@@ -10,6 +10,7 @@ export {
   WEEKDAYS_SHORT,
   dayMonthShort,
   dayMonthYear,
+  dayOfMonth,
   daysUntil,
   formatDaysUntil,
   isoWeekday,
