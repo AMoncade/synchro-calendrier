@@ -1,10 +1,14 @@
-// Rasterise `public/icons/icon.svg` en icônes PNG 16/48/128 px pour le manifest.
-// Usage : node scripts/make-icons.mjs
+// Rasterise `assets/icon.svg` en icônes PNG 16/48/128 px pour le manifest.
+// Usage : node scripts/make-icons.mjs   (ou npm run icons)
 //
 // Rendu par resvg (Rust, sans navigateur ni canvas) : la génération est
 // reproductible en ligne de commande et ne dépend d'aucun outil installé
 // à la main. Fond transparent, pour que l'icône tienne sur une barre
 // d'outils claire comme sombre.
+//
+// La source SVG vit dans `assets/`, hors de `public/` : Vite recopie tout
+// `public/` dans `dist/`, et le SVG n'a rien à faire dans le paquet livré au
+// Web Store. Seuls les PNG produits ici y sont embarqués.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -14,8 +18,9 @@ import { Resvg } from "@resvg/resvg-js";
 const SIZES = [16, 48, 128];
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const sourcePath = join(root, "assets", "icon.svg");
 const iconsDir = join(root, "public", "icons");
-const source = readFileSync(join(iconsDir, "icon.svg"), "utf8");
+const source = readFileSync(sourcePath, "utf8");
 
 for (const size of SIZES) {
   const renderer = new Resvg(source, {
