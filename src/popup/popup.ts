@@ -209,7 +209,7 @@ function renderWeek(view: View, now: ReturnType<typeof localNow>): void {
     if (items.length === 0 && i >= 5) return; // samedi/dimanche seulement s'il y a quelque chose
     any = any || items.length > 0;
     const day = el("div", `day${date === now.date ? " today" : ""}`);
-    day.append(el("div", "dayname", `${weekdayName((i + 1) as 1, "long")} ${shortDate(date).replace(/^\S+\s/, "")}`));
+    day.append(el("div", "dayname", `${weekdayName((i + 1) as 1, "long")} ${dayMonthShort(date)}`));
     if (items.length === 0) day.append(el("div", "dim", "—"));
     for (const o of items) {
       const key = `${o.date}|${o.start}|${o.label}`;
