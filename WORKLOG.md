@@ -1,5 +1,23 @@
 # WORKLOG — Synchro Calendrier UdeM
 
+## 2026-09-09 soir — v2 (spec de l'utilisateur, Downloads/SPEC.md)
+
+- Dépôt GitHub public créé et main poussé : https://github.com/AMoncade/synchro-calendrier
+  (5e627fb, licence MIT). Merges : `integration` (test bout en bout d'a6, 141 tests),
+  `packaging` (`npm run package`, docs/INSTALL.md, docs/FIREFOX.md), `icon-source`.
+- Quatre défauts de couture corrigés (bd5c68a) : UID ICS avec date de début, provenance du
+  collage rendue par `parsePasted`, date locale pour deviner le trimestre, notes par cours ;
+  max-wait 2,5 s sur l'anti-rebond du content script.
+- Spec v2 acceptée sauf : table des temps de marche entre pavillons (§8.2, données
+  invérifiables sans relevé sur place — différé), grille horaire de la semaine (§5 : liste
+  groupée par jour d'abord, comme la spec l'autorise), isolation du popup par Shadow DOM
+  (§1.1 : le popup est un document séparé, les styles de la page hôte ne l'atteignent pas ;
+  le « 1 » signalé est à reproduire sur capture d'écran avant de corriger).
+- Répartition : `src/format/` (a6, branche `format`), `core/today.ts` + `core/alerts.ts` +
+  icon32 (48, branche `today`), `core/ics.ts` VALARM/SUMMARY v2 + `core/gcal.ts` (f4,
+  branche `ics-v2`). Intégratrice : popup à onglets (écrit, en attente des modules), badge =
+  cours restants aujourd'hui, manifest, README/captures.
+
 ## 2026-09-09 — Phase 0 (en cours)
 
 - Squelette Vite 8 + @crxjs/vite-plugin 2.7 + Vitest 5 + happy-dom 20 + TypeScript,

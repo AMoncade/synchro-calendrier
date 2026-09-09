@@ -1,22 +1,39 @@
 {
   "manifest_version": 3,
   "name": "Synchro Calendrier UdeM",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Exporte l'horaire du Centre étudiant (Synchro) en calendrier ICS, avec examens et conflits. Tout reste sur votre ordinateur.",
-  "permissions": ["storage", "alarms"],
-  "host_permissions": ["https://*.synchro.umontreal.ca/*"],
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://*.synchro.umontreal.ca/*"
+  ],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_title": "Synchro Calendrier"
   },
-  "background": { "service_worker": "src/background/index.ts", "type": "module" },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
   "content_scripts": [
     {
-      "matches": ["https://*.synchro.umontreal.ca/*"],
-      "js": ["src/content/synchro.ts"],
+      "matches": [
+        "https://*.synchro.umontreal.ca/*"
+      ],
+      "js": [
+        "src/content/synchro.ts"
+      ],
       "all_frames": true,
       "run_at": "document_idle"
     }
   ],
-  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
 }
