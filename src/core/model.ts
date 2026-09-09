@@ -66,3 +66,20 @@ export interface Conflict {
   start: string;
   end: string;
 }
+
+/**
+ * Une séance ou un examen ramené à une date concrète (après expansion des
+ * récurrences et retrait des exclusions). C'est l'unité commune du générateur
+ * ICS et du détecteur de conflits.
+ */
+export interface Occurrence {
+  kind: "cours" | "examen";
+  /** ex. "MAT1400" */
+  courseCode: string;
+  /** Texte affichable : "MAT 1400-A Calcul 1 (TH)" ou "MAT 1400 — Examen intra". */
+  label: string;
+  date: string;
+  start: string;
+  end: string;
+  location: string;
+}
