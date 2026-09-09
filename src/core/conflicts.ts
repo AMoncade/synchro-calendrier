@@ -1,0 +1,156 @@
+// Détection des conflits d'horaire à partir d'occurrences datées (docs/ARCHITECTURE.md §2).
+// Entrée : des `Occurrence` déjà expansées (produites par expand.ts, non importé ici).
+// Hypothèse du contrat : dates "AAAA-MM-JJ" et heures "HH:MM" zéro-remplies, donc
+// comparables comme chaînes.
+
+import type { Conflict, ConflictKind, Occurrence } from "./model";
+
+/** Clé d'identité d'une occurrence : deux entrées identiques ré-importées comptent pour une. */
+function occurrenceKey(o: Occurrence): string {
+  return [o.courseCode, o.label, o.date, o.start, o.end].join("|");
+}
+
+/** Clé d'identité d'un conflit, pour l'union dédoublonnée. */
+function conflictKey(c: Conflict): string {
+  return [c.kind, c.a, c.b, c.date, c.start, c.end].join("|");
+}
+
+/** Clé de la paire d'occurrences (sans les bornes), pour ne pas signaler deux fois la même paire. */
+function pairKey(c: Conflict): string {
+  return [c.a, c.b, c.date].join("|");
+}
+
+function compareStrings(x: string, y: string): number {
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
+/** Ordre canonique d'une journée : début, fin, puis libellé. */
+function compareOccurrences(x: Occurrence, y: Occurrence): number {
+  return (
+    compareStrings(x.start, y.start) ||
+    compareStrings(x.end, y.end) ||
+    compareStrings(x.label, y.label) ||
+    compareStrings(x.courseCode, y.courseCode)
+  );
+}
+
+/** Ordre de sortie : date, début, fin, puis libellés et genre pour rester déterministe. */
+function compareConflicts(x: Conflict, y: Conflict): number {
+  return (
+    compareStrings(x.date, y.date) ||
+    compareStrings(x.start, y.start) ||
+    compareStrings(x.end, y.end) ||
+    compareStrings(x.a, y.a) ||
+    compareStrings(x.b, y.b) ||
+    compareStrings(x.kind, y.kind)
+  );
+}
+
+function conflictKindOf(x: Occurrence, y: Occurrence): ConflictKind {
+  if (x.kind === "examen" && y.kind === "examen") return "examen-examen";
+  if (x.kind === "cours" && y.kind === "cours") return "cours-cours";
+  return "cours-examen";
+}
+
+/**
+ * Dédoublonne puis regroupe par date ; chaque journée est triée dans l'ordre canonique.
+ * Les journées sont rendues triées par date pour que les parcours soient déterministes.
+ */
+function groupByDay(occurrences: Occurrence[]): Array<[string, Occurrence[]]> {
+  const seen = new Set<string>();
+  const byDay = new Map<string, Occurrence[]>();
+  for (const o of occurrences) {
+    const key = occurrenceKey(o);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const day = byDay.get(o.date);
+    if (day) day.push(o);
+    else byDay.set(o.date, [o]);
+  }
+  const days = [...byDay.entries()];
+  days.sort(([d1], [d2]) => compareStrings(d1, d2));
+  for (const [, day] of days) day.sort(compareOccurrences);
+  return days;
+}
+
+/**
+ * Chevauchements stricts (fin 10:30 et début 10:30 = pas de conflit), tous genres confondus.
+ * `start`/`end` = intersection des deux intervalles ; `a` précède `b` dans l'ordre canonique.
+ * Balayage par jour : chaque occurrence n'est comparée qu'aux occurrences encore « ouvertes ».
+ */
+export function findOverlaps(occurrences: Occurrence[]): Conflict[] {
+  const result: Conflict[] = [];
+  for (const [date, day] of groupByDay(occurrences)) {
+    let active: Occurrence[] = [];
+    for (const current of day) {
+      // Les occurrences terminées au plus tard au début de `current` ne peuvent plus la
+      // chevaucher, ni chevaucher les suivantes (la journée est triée par début).
+      active = active.filter((o) => o.end > current.start);
+      for (const other of active) {
+        // `other.start <= current.start` par construction ; le chevauchement strict est
+        // garanti par le filtre ci-dessus.
+        result.push({
+          kind: conflictKindOf(other, current),
+          a: other.label,
+          b: current.label,
+          date,
+          start: current.start,
+          end: other.end < current.end ? other.end : current.end,
+        });
+      }
+      active.push(current);
+    }
+  }
+  return result.sort(compareConflicts);
+}
+
+/**
+ * Deux examens le même jour, qu'ils se chevauchent ou non (avertissement : journée chargée).
+ * `start`/`end` couvrent du premier début à la dernière fin de la paire.
+ */
+export function findSameDayExams(occurrences: Occurrence[]): Conflict[] {
+  const result: Conflict[] = [];
+  for (const [date, day] of groupByDay(occurrences)) {
+    const exams = day.filter((o) => o.kind === "examen");
+    for (let i = 0; i < exams.length; i++) {
+      const first = exams[i]!;
+      for (let j = i + 1; j < exams.length; j++) {
+        const second = exams[j]!;
+        result.push({
+          kind: "examen-examen",
+          a: first.label,
+          b: second.label,
+          date,
+          start: first.start,
+          end: first.end > second.end ? first.end : second.end,
+        });
+      }
+    }
+  }
+  return result.sort(compareConflicts);
+}
+
+/**
+ * Union dédoublonnée des chevauchements et des examens le même jour.
+ * Quand deux examens se chevauchent, seul le chevauchement (plus précis) est conservé :
+ * l'entrée « même jour » de la même paire serait redondante.
+ */
+export function findConflicts(occurrences: Occurrence[]): Conflict[] {
+  const overlaps = findOverlaps(occurrences);
+  const overlappingExamPairs = new Set(
+    overlaps.filter((c) => c.kind === "examen-examen").map(pairKey),
+  );
+  const seen = new Set<string>();
+  const result: Conflict[] = [];
+  const push = (c: Conflict): void => {
+    const key = conflictKey(c);
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(c);
+  };
+  for (const c of overlaps) push(c);
+  for (const c of findSameDayExams(occurrences)) {
+    if (!overlappingExamPairs.has(pairKey(c))) push(c);
+  }
+  return result.sort(compareConflicts);
+}
