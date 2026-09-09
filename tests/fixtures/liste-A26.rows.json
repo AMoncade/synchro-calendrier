@@ -7,13 +7,13 @@
       "status": ["Inscrit", "4.00", "Littéral", "", "1-190-1-0 Cours obligatoire", ""],
       "rows": [
         ["1490", "A", "TH", "Ma 08:30 - 10:29", "E-310 Pav. Roger-Gaudry", "Enseignant Un", "31/08/2026 - 16/10/2026", "SGA"],
-        ["", "", "", "J 08:30 - 10:29", "B-0215  Pav. 3200 J.-Brillant", "Enseignant Un", "31/08/2026 - 16/10/2026", ""],
+        ["", "", "", "J 08:30 - 10:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Un", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "Ma 08:30 - 10:29", "E-310 Pav. Roger-Gaudry", "Enseignant Un", "26/10/2026 - 09/12/2026", ""],
-        ["", "", "", "J 08:30 - 10:29", "B-0215  Pav. 3200 J.-Brillant", "Enseignant Un", "26/10/2026 - 09/12/2026", ""],
-        ["", "", "EXI", "Lun 15:30 - 17:29", "B-0245  Pav. 3200 J.-Brillant", "", "26/10/2026", ""],
-        ["", "", "EXF", "J 08:30 - 11:29", "B-0215  Pav. 3200 J.-Brillant", "", "17/12/2026", ""],
-        ["1523", "A102", "TP", "Lun 15:30 - 17:29", "B-3265  Pav. 3200 J.-Brillant", "À communiquer", "07/09/2026 - 16/10/2026", ""],
-        ["", "", "", "Lun 15:30 - 17:29", "B-3265  Pav. 3200 J.-Brillant", "À communiquer", "02/11/2026 - 09/12/2026", ""]
+        ["", "", "", "J 08:30 - 10:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Un", "26/10/2026 - 09/12/2026", ""],
+        ["", "", "EXI", "Lun 15:30 - 17:29", "B-0245 Pav. 3200 J.-Brillant", "", "26/10/2026", ""],
+        ["", "", "EXF", "J 08:30 - 11:29", "B-0215 Pav. 3200 J.-Brillant", "", "17/12/2026", ""],
+        ["1523", "A102", "TP", "Lun 15:30 - 17:29", "B-3265 Pav. 3200 J.-Brillant", "À communiquer", "07/09/2026 - 16/10/2026", ""],
+        ["", "", "", "Lun 15:30 - 17:29", "B-3265 Pav. 3200 J.-Brillant", "À communiquer", "02/11/2026 - 09/12/2026", ""]
       ],
       "notes": [
         "Les horaires et dates d'examens peuvent être sujets à modification.",
@@ -26,13 +26,13 @@
       "title": "MAT 1500 - Mathématiques discrètes",
       "rows": [
         ["1571", "A", "TH", "Lun 10:30 - 12:29", "N-515 Pav. Roger-Gaudry", "Enseignant Deux", "31/08/2026 - 16/10/2026", "SGA"],
-        ["", "", "", "Mer 08:30 - 10:29", "B-0325  Pav. 3200 J.-Brillant", "Enseignant Deux", "31/08/2026 - 16/10/2026", ""],
+        ["", "", "", "Mer 08:30 - 10:29", "B-0325 Pav. 3200 J.-Brillant", "Enseignant Deux", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "Lun 10:30 - 12:29", "N-515 Pav. Roger-Gaudry", "Enseignant Deux", "26/10/2026 - 09/12/2026", ""],
-        ["", "", "", "Mer 08:30 - 10:29", "B-0325  Pav. 3200 J.-Brillant", "Enseignant Deux", "26/10/2026 - 09/12/2026", ""],
-        ["", "", "EXI", "J 10:30 - 12:29", "B-2325  Pav. 3200 J.-Brillant", "", "29/10/2026", ""],
-        ["", "", "EXF", "J 08:30 - 11:29", "B-2325  Pav. 3200 J.-Brillant", "", "10/12/2026", ""],
-        ["1574", "A102", "TP", "J 10:30 - 12:29", "B-3240  Pav. 3200 J.-Brillant", "À communiquer", "07/09/2026 - 16/10/2026", ""],
-        ["", "", "", "J 10:30 - 12:29", "B-3240  Pav. 3200 J.-Brillant", "À communiquer", "02/11/2026 - 09/12/2026", ""]
+        ["", "", "", "Mer 08:30 - 10:29", "B-0325 Pav. 3200 J.-Brillant", "Enseignant Deux", "26/10/2026 - 09/12/2026", ""],
+        ["", "", "EXI", "J 10:30 - 12:29", "B-2325 Pav. 3200 J.-Brillant", "", "29/10/2026", ""],
+        ["", "", "EXF", "J 08:30 - 11:29", "B-2325 Pav. 3200 J.-Brillant", "", "10/12/2026", ""],
+        ["1574", "A102", "TP", "J 10:30 - 12:29", "B-3240 Pav. 3200 J.-Brillant", "À communiquer", "07/09/2026 - 16/10/2026", ""],
+        ["", "", "", "J 10:30 - 12:29", "B-3240 Pav. 3200 J.-Brillant", "À communiquer", "02/11/2026 - 09/12/2026", ""]
       ],
       "notes": [
         "Les horaires et dates d'examens peuvent être sujets à modification.",
@@ -42,31 +42,31 @@
     {
       "title": "MAT 1600 - Algèbre linéaire",
       "rows": [
-        ["1578", "A102", "TP", "V 08:30 - 10:29", "B-4275  Pav. 3200 J.-Brillant", "À communiquer", "31/08/2026 - 09/10/2026", ""],
-        ["", "", "", "V 08:30 - 10:29", "B-4275  Pav. 3200 J.-Brillant", "À communiquer", "26/10/2026 - 09/12/2026", ""],
+        ["1578", "A102", "TP", "V 08:30 - 10:29", "B-4275 Pav. 3200 J.-Brillant", "À communiquer", "31/08/2026 - 09/10/2026", ""],
+        ["", "", "", "V 08:30 - 10:29", "B-4275 Pav. 3200 J.-Brillant", "À communiquer", "26/10/2026 - 09/12/2026", ""],
         ["12280", "A", "TH", "Lun 08:30 - 10:29", "P-310 Pav. Roger-Gaudry", "Enseignant Trois", "31/08/2026 - 16/10/2026", "SGA"],
         ["", "", "", "À communiquer 08:30 - 10:29", "En ligne", "Enseignant Trois", "31/08/2026 - 16/10/2026", ""],
         ["", "", "", "Lun 08:30 - 10:29", "P-310 Pav. Roger-Gaudry", "Enseignant Trois", "26/10/2026 - 09/12/2026", ""],
         ["", "", "", "À communiquer 08:30 - 10:29", "En ligne", "Enseignant Trois", "26/10/2026 - 09/12/2026", ""],
-        ["", "", "EXI", "V 08:30 - 10:29", "B-0215  Pav. 3200 J.-Brillant", "", "16/10/2026", ""],
-        ["", "", "EXF", "V 08:30 - 11:29", "B-0215  Pav. 3200 J.-Brillant", "", "11/12/2026", ""]
+        ["", "", "EXI", "V 08:30 - 10:29", "B-0215 Pav. 3200 J.-Brillant", "", "16/10/2026", ""],
+        ["", "", "EXF", "V 08:30 - 11:29", "B-0215 Pav. 3200 J.-Brillant", "", "11/12/2026", ""]
       ],
       "notes": []
     },
     {
       "title": "STT 1700 - Introduction à la statistique",
       "rows": [
-        ["1628", "A", "TH", "Lun 13:30 - 15:29", "B-0215  Pav. 3200 J.-Brillant", "Enseignant Quatre", "31/08/2026 - 16/10/2026", "SGA"],
-        ["", "", "", "Ma 12:30 - 13:29", "B-0215  Pav. 3200 J.-Brillant", "Enseignant Quatre", "31/08/2026 - 16/10/2026", ""],
-        ["", "", "", "Lun 13:30 - 15:29", "B-0215  Pav. 3200 J.-Brillant", "Enseignant Quatre", "26/10/2026 - 09/12/2026", ""],
-        ["", "", "", "Ma 12:30 - 13:29", "B-0215  Pav. 3200 J.-Brillant", "Enseignant Quatre", "26/10/2026 - 09/12/2026", ""],
+        ["1628", "A", "TH", "Lun 13:30 - 15:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Quatre", "31/08/2026 - 16/10/2026", "SGA"],
+        ["", "", "", "Ma 12:30 - 13:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Quatre", "31/08/2026 - 16/10/2026", ""],
+        ["", "", "", "Lun 13:30 - 15:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Quatre", "26/10/2026 - 09/12/2026", ""],
+        ["", "", "", "Ma 12:30 - 13:29", "B-0215 Pav. 3200 J.-Brillant", "Enseignant Quatre", "26/10/2026 - 09/12/2026", ""],
         ["", "", "EXF", "Ma 12:30 - 15:29", "N-515 Pav. Roger-Gaudry", "", "15/12/2026", ""],
         ["", "", "EXI", "Mer 13:30 - 15:29", "S1-151 Pav. Jean Coutu", "", "07/10/2026", ""],
-        ["", "", "EXI", "Mer 13:30 - 15:29", "B-2245  Pav. 3200 J.-Brillant", "", "11/11/2026", ""],
-        ["1631", "A103", "TP", "Mer 13:30 - 15:29", "B-4285  Pav. 3200 J.-Brillant", "À communiquer", "07/09/2026 - 02/10/2026", ""],
-        ["", "", "", "Mer 13:30 - 15:29", "B-4285  Pav. 3200 J.-Brillant", "À communiquer", "12/10/2026 - 16/10/2026", ""],
-        ["", "", "", "Mer 13:30 - 15:29", "B-4285  Pav. 3200 J.-Brillant", "À communiquer", "26/10/2026 - 06/11/2026", ""],
-        ["", "", "", "Mer 13:30 - 15:29", "B-4285  Pav. 3200 J.-Brillant", "À communiquer", "16/11/2026 - 09/12/2026", ""]
+        ["", "", "EXI", "Mer 13:30 - 15:29", "B-2245 Pav. 3200 J.-Brillant", "", "11/11/2026", ""],
+        ["1631", "A103", "TP", "Mer 13:30 - 15:29", "B-4285 Pav. 3200 J.-Brillant", "À communiquer", "07/09/2026 - 02/10/2026", ""],
+        ["", "", "", "Mer 13:30 - 15:29", "B-4285 Pav. 3200 J.-Brillant", "À communiquer", "12/10/2026 - 16/10/2026", ""],
+        ["", "", "", "Mer 13:30 - 15:29", "B-4285 Pav. 3200 J.-Brillant", "À communiquer", "26/10/2026 - 06/11/2026", ""],
+        ["", "", "", "Mer 13:30 - 15:29", "B-4285 Pav. 3200 J.-Brillant", "À communiquer", "16/11/2026 - 09/12/2026", ""]
       ],
       "notes": [
         "Les horaires et dates d'examens peuvent être sujets à modification.",
