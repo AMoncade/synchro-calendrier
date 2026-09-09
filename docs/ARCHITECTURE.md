@@ -46,6 +46,30 @@ worker, pour que celui-ci ne reçoive qu'un `Schedule` déjà valide et reste tr
 `src/core/` ne dépend d'aucune API navigateur. Les exclusions de dates viennent de
 `core/calendar-udem.ts` et sont passées **en paramètre** à `expand.ts` / `ics.ts`.
 
+### Modules v2 (2026-09-09, spec de l'utilisateur)
+
+- `src/format/` — texte affiché : dates françaises (table maison, « 1er »), temps relatif,
+  locaux abrégés (`B-0215 · J.-Brillant`) ou longs (`B-0215, Pavillon J.-Brillant`), sigle
+  compact, noms de volet, durées, palette par sigle (`courseColors` sur l'horaire entier :
+  couleurs distinctes jusqu'à neuf cours). Pur ; `core/` **peut** importer `format/`, jamais
+  l'inverse.
+- `core/today.ts` — `buildTodayView(occurrences, exams, now)` : jour affiché (aujourd'hui,
+  demain, prochain jour de cours, rien, trimestre terminé), blocs « now / next / later »,
+  ≤ 6 éléments, prochain examen sous 30 jours. Convention : un bloc est en cours sur
+  [début, fin[.
+- `core/alerts.ts` — grappes d'examens (≥ 3 en 8 jours), journée chargée (> 6 h ou ≥ 3
+  blocs), `classesRemainingToday` (badge).
+- `core/ics.ts` v2 — `VALARM` (examens 24 h et 1 h, cours 15 min sur option), `SUMMARY`
+  `MAT1400-A — Théorie` (avec section : TH-A et TP-A102 sont deux entrées), `CATEGORIES`.
+- `core/gcal.ts` — URL « Ajouter à Google Agenda » pour un examen (heure locale + `ctz`).
+- Popup v2 (`src/popup/`) : onglets Aujourd'hui / Semaine (liste par jour) / Examens
+  (intras, finals, passés masquables), menu ⋯, repli « coller » plein cadre seulement sans
+  horaire, panneaux dépliables (copier le local, carte du campus, Google Agenda). État
+  d'interface dans `chrome.storage.local` (`synchro-calendrier.ui`), onglet ramené à
+  Aujourd'hui après 4 h. Badge = cours restants aujourd'hui.
+- Différé : temps de marche entre pavillons (§8.2 de la spec, aucune donnée fiable), grille
+  horaire de la semaine (§5).
+
 ## 4. Propriétaires des fichiers
 
 Historique (2026-09-09, sessions parallèles) : `calendar-udem.ts` par la session
