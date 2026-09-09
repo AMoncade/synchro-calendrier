@@ -1,0 +1,62 @@
+Voir « Horaire hebdomadaire » pour en apprendre plus
+
+DATES LIMITES	SGA	COURS	HORAIRE
+
+Dates limites	SGA	Cours
+MAT 1400-A
+TH (1490)	Horaire
+J 08:30 - 10:29
+B-0215  Pav. 3200 J.-Brillant
+
+Ma 08:30 - 10:29
+E-310 Pav. Roger-Gaudry
+
+Dates limites		Cours
+MAT 1400-A102
+TP (1523)	Horaire
+Lun 15:30 - 17:29
+B-3265  Pav. 3200 J.-Brillant
+
+Dates limites	SGA	Cours
+MAT 1500-A
+TH (1571)	Horaire
+Mer 08:30 - 10:29
+B-0325  Pav. 3200 J.-Brillant
+
+Lun 10:30 - 12:29
+N-515 Pav. Roger-Gaudry
+
+Dates limites		Cours
+MAT 1500-A102
+TP (1574)	Horaire
+J 10:30 - 12:29
+B-3240  Pav. 3200 J.-Brillant
+
+Dates limites	SGA	Cours
+MAT 1600-A
+TH (12280)	Horaire
+En ligne
+
+Lun 08:30 - 10:29
+P-310 Pav. Roger-Gaudry
+
+Dates limites		Cours
+MAT 1600-A102
+TP (1578)	Horaire
+V 08:30 - 10:29
+B-4275  Pav. 3200 J.-Brillant
+
+Dates limites	SGA	Cours
+STT 1700-A
+TH (1628)	Horaire
+Ma 12:30 - 13:29
+B-0215  Pav. 3200 J.-Brillant
+
+Lun 13:30 - 15:29
+B-0215  Pav. 3200 J.-Brillant
+
+Dates limites		Cours
+STT 1700-A103
+TP (1631)	Horaire
+Mer 13:30 - 15:29
+B-4285  Pav. 3200 J.-Brillant

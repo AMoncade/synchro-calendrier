@@ -1,0 +1,809 @@
+Automne 2026 | Premier cycle | Université de Montréal
+MAT 1400 - Calcul 1
+STATUT	CRÉDITS SUIVIS	NOTATION	NOTE	DÉSIGNATION D'EXIGENCE	DATES LIMITES
+
+Statut
+Inscrit
+
+Crédits suivis
+4.00
+
+Notation
+Littéral
+
+Note
+
+Désignation d'exigence
+1-190-1-0 Cours obligatoire
+
+Dates limites
+Dates limites
+Nº COURS	SECTION	VOLET	JOURS ET HEURES	LOCAL	ENSEIGNANT	DATES DÉBUT/FIN	URL
+
+Nº cours
+1490
+
+Section
+A
+
+Volet
+TH
+
+Jours et heures
+Ma 08:30 - 10:29
+
+Local
+E-310 Pav. Roger-Gaudry
+
+Enseignant
+Enseignant Un
+
+Dates début/fin
+31/08/2026 - 16/10/2026
+
+URL
+SGA
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+J 08:30 - 10:29
+
+Local
+B-0215  Pav. 3200 J.-Brillant
+
+Enseignant
+Enseignant Un
+
+Dates début/fin
+31/08/2026 - 16/10/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Ma 08:30 - 10:29
+
+Local
+E-310 Pav. Roger-Gaudry
+
+Enseignant
+Enseignant Un
+
+Dates début/fin
+26/10/2026 - 09/12/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+J 08:30 - 10:29
+
+Local
+B-0215  Pav. 3200 J.-Brillant
+
+Enseignant
+Enseignant Un
+
+Dates début/fin
+26/10/2026 - 09/12/2026
+
+
+Nº cours
+
+Volet
+EXI
+
+Jours et heures
+Lun 15:30 - 17:29
+
+Local
+B-0245  Pav. 3200 J.-Brillant
+
+Enseignant
+
+Dates début/fin
+26/10/2026
+
+
+Nº cours
+
+Volet
+EXF
+
+Jours et heures
+J 08:30 - 11:29
+
+Local
+B-0215  Pav. 3200 J.-Brillant
+
+Enseignant
+
+Dates début/fin
+17/12/2026
+
+
+Nº cours
+1523
+
+Section
+A102
+
+Volet
+TP
+
+Jours et heures
+Lun 15:30 - 17:29
+
+Local
+B-3265  Pav. 3200 J.-Brillant
+
+Enseignant
+À communiquer
+
+Dates début/fin
+07/09/2026 - 16/10/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Lun 15:30 - 17:29
+
+Local
+B-3265  Pav. 3200 J.-Brillant
+
+Enseignant
+À communiquer
+
+Dates début/fin
+02/11/2026 - 09/12/2026
+
+Remarques cours
+
+
+1490
+
+A
+
+TH
+
+Les horaires et dates d'examens peuvent être sujets à modification.
+
+
+
+
+
+
+
+Les salles de cours peuvent être sujettes à modification.
+
+
+
+
+
+
+
+Les étudiants de la Mineure arts et sciences et les étudiants libres doivent avoir une préparation collégiale, soit les cours MATH 103, 105, 203.
+
+
+
+
+
+
+
+Les étudiants des départements d'informatique et de physique doivent s'inscrire à la section I.
+
+MAT 1500 - Mathématiques discrètes
+STATUT	CRÉDITS SUIVIS	NOTATION	NOTE	DÉSIGNATION D'EXIGENCE	DATES LIMITES
+
+Statut
+Inscrit
+
+Crédits suivis
+4.00
+
+Notation
+Littéral
+
+Note
+
+Désignation d'exigence
+1-190-1-0 Cours obligatoire
+
+Dates limites
+Dates limites
+Nº COURS	SECTION	VOLET	JOURS ET HEURES	LOCAL	ENSEIGNANT	DATES DÉBUT/FIN	URL
+
+Nº cours
+1571
+
+Section
+A
+
+Volet
+TH
+
+Jours et heures
+Lun 10:30 - 12:29
+
+Local
+N-515 Pav. Roger-Gaudry
+
+Enseignant
+Enseignant Deux
+
+Dates début/fin
+31/08/2026 - 16/10/2026
+
+URL
+SGA
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Mer 08:30 - 10:29
+
+Local
+B-0325  Pav. 3200 J.-Brillant
+
+Enseignant
+Enseignant Deux
+
+Dates début/fin
+31/08/2026 - 16/10/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Lun 10:30 - 12:29
+
+Local
+N-515 Pav. Roger-Gaudry
+
+Enseignant
+Enseignant Deux
+
+Dates début/fin
+26/10/2026 - 09/12/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Mer 08:30 - 10:29
+
+Local
+B-0325  Pav. 3200 J.-Brillant
+
+Enseignant
+Enseignant Deux
+
+Dates début/fin
+26/10/2026 - 09/12/2026
+
+
+Nº cours
+
+Volet
+EXI
+
+Jours et heures
+J 10:30 - 12:29
+
+Local
+B-2325  Pav. 3200 J.-Brillant
+
+Enseignant
+
+Dates début/fin
+29/10/2026
+
+
+Nº cours
+
+Volet
+EXF
+
+Jours et heures
+J 08:30 - 11:29
+
+Local
+B-2325  Pav. 3200 J.-Brillant
+
+Enseignant
+
+Dates début/fin
+10/12/2026
+
+
+Nº cours
+1574
+
+Section
+A102
+
+Volet
+TP
+
+Jours et heures
+J 10:30 - 12:29
+
+Local
+B-3240  Pav. 3200 J.-Brillant
+
+Enseignant
+À communiquer
+
+Dates début/fin
+07/09/2026 - 16/10/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+J 10:30 - 12:29
+
+Local
+B-3240  Pav. 3200 J.-Brillant
+
+Enseignant
+À communiquer
+
+Dates début/fin
+02/11/2026 - 09/12/2026
+
+Remarques cours
+
+
+1571
+
+A
+
+TH
+
+Les horaires et dates d'examens peuvent être sujets à modification.
+
+
+
+
+
+
+
+Les salles de cours peuvent être sujettes à modification.
+
+MAT 1600 - Algèbre linéaire
+STATUT	CRÉDITS SUIVIS	NOTATION	NOTE	DÉSIGNATION D'EXIGENCE	DATES LIMITES
+
+Statut
+Inscrit
+
+Crédits suivis
+4.00
+
+Notation
+Littéral
+
+Note
+
+Désignation d'exigence
+1-190-1-0 Cours obligatoire
+
+Dates limites
+Dates limites
+Nº COURS	SECTION	VOLET	JOURS ET HEURES	LOCAL	ENSEIGNANT	DATES DÉBUT/FIN	URL
+
+Nº cours
+1578
+
+Section
+A102
+
+Volet
+TP
+
+Jours et heures
+V 08:30 - 10:29
+
+Local
+B-4275  Pav. 3200 J.-Brillant
+
+Enseignant
+À communiquer
+
+Dates début/fin
+31/08/2026 - 09/10/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+V 08:30 - 10:29
+
+Local
+B-4275  Pav. 3200 J.-Brillant
+
+Enseignant
+À communiquer
+
+Dates début/fin
+26/10/2026 - 09/12/2026
+
+
+Nº cours
+12280
+
+Section
+A
+
+Volet
+TH
+
+Jours et heures
+Lun 08:30 - 10:29
+
+Local
+P-310 Pav. Roger-Gaudry
+
+Enseignant
+Enseignant Trois
+
+Dates début/fin
+31/08/2026 - 16/10/2026
+
+URL
+SGA
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+À communiquer 08:30 - 10:29
+
+Local
+En ligne
+
+Enseignant
+Enseignant Trois
+
+Dates début/fin
+31/08/2026 - 16/10/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Lun 08:30 - 10:29
+
+Local
+P-310 Pav. Roger-Gaudry
+
+Enseignant
+Enseignant Trois
+
+Dates début/fin
+26/10/2026 - 09/12/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+À communiquer 08:30 - 10:29
+
+Local
+En ligne
+
+Enseignant
+Enseignant Trois
+
+Dates début/fin
+26/10/2026 - 09/12/2026
+
+
+Nº cours
+
+Volet
+EXI
+
+Jours et heures
+V 08:30 - 10:29
+
+Local
+B-0215  Pav. 3200 J.-Brillant
+
+Enseignant
+
+Dates début/fin
+16/10/2026
+
+
+Nº cours
+
+Volet
+EXF
+
+Jours et heures
+V 08:30 - 11:29
+
+Local
+B-0215  Pav. 3200 J.-Brillant
+
+Enseignant
+
+Dates début/fin
+11/12/2026
+
+STT 1700 - Introduction à la statistique
+STATUT	CRÉDITS SUIVIS	NOTATION	NOTE	DÉSIGNATION D'EXIGENCE	DATES LIMITES
+
+Statut
+Inscrit
+
+Crédits suivis
+3.00
+
+Notation
+Littéral
+
+Note
+
+Désignation d'exigence
+1-190-1-0 Cours obligatoire
+
+Dates limites
+Dates limites
+Nº COURS	SECTION	VOLET	JOURS ET HEURES	LOCAL	ENSEIGNANT	DATES DÉBUT/FIN	URL
+
+Nº cours
+1628
+
+Section
+A
+
+Volet
+TH
+
+Jours et heures
+Lun 13:30 - 15:29
+
+Local
+B-0215  Pav. 3200 J.-Brillant
+
+Enseignant
+Enseignant Quatre
+
+Dates début/fin
+31/08/2026 - 16/10/2026
+
+URL
+SGA
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Ma 12:30 - 13:29
+
+Local
+B-0215  Pav. 3200 J.-Brillant
+
+Enseignant
+Enseignant Quatre
+
+Dates début/fin
+31/08/2026 - 16/10/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Lun 13:30 - 15:29
+
+Local
+B-0215  Pav. 3200 J.-Brillant
+
+Enseignant
+Enseignant Quatre
+
+Dates début/fin
+26/10/2026 - 09/12/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Ma 12:30 - 13:29
+
+Local
+B-0215  Pav. 3200 J.-Brillant
+
+Enseignant
+Enseignant Quatre
+
+Dates début/fin
+26/10/2026 - 09/12/2026
+
+
+Nº cours
+
+Volet
+EXF
+
+Jours et heures
+Ma 12:30 - 15:29
+
+Local
+N-515 Pav. Roger-Gaudry
+
+Enseignant
+
+Dates début/fin
+15/12/2026
+
+
+Nº cours
+
+Volet
+EXI
+
+Jours et heures
+Mer 13:30 - 15:29
+
+Local
+S1-151 Pav. Jean Coutu
+
+Enseignant
+
+Dates début/fin
+07/10/2026
+
+
+Nº cours
+
+Volet
+EXI
+
+Jours et heures
+Mer 13:30 - 15:29
+
+Local
+B-2245  Pav. 3200 J.-Brillant
+
+Enseignant
+
+Dates début/fin
+11/11/2026
+
+
+Nº cours
+1631
+
+Section
+A103
+
+Volet
+TP
+
+Jours et heures
+Mer 13:30 - 15:29
+
+Local
+B-4285  Pav. 3200 J.-Brillant
+
+Enseignant
+À communiquer
+
+Dates début/fin
+07/09/2026 - 02/10/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Mer 13:30 - 15:29
+
+Local
+B-4285  Pav. 3200 J.-Brillant
+
+Enseignant
+À communiquer
+
+Dates début/fin
+12/10/2026 - 16/10/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Mer 13:30 - 15:29
+
+Local
+B-4285  Pav. 3200 J.-Brillant
+
+Enseignant
+À communiquer
+
+Dates début/fin
+26/10/2026 - 06/11/2026
+
+
+Nº cours
+
+Volet
+
+Jours et heures
+Mer 13:30 - 15:29
+
+Local
+B-4285  Pav. 3200 J.-Brillant
+
+Enseignant
+À communiquer
+
+Dates début/fin
+16/11/2026 - 09/12/2026
+
+Remarques cours
+
+
+1628
+
+A
+
+TH
+
+Les horaires et dates d'examens peuvent être sujets à modification.
+
+
+
+
+
+
+
+Les salles de cours peuvent être sujettes à modification.
+
+
+
+
+
+
+
+Les étudiants de la Mineure arts et sciences et les étudiants libres doivent avoir une préparation collégiale, soit les cours MATH 103, 105, 203.
+
