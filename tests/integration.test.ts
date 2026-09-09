@@ -273,40 +273,26 @@ describe("chaîne complète — page Liste, voie DOM", () => {
     }
   });
 
-  // DÉFAUT CONNU — voir le rapport. `meetingUid` (src/core/ics.ts) ne tient
-  // compte que de <trimestre, code, section, volet, jour, heure> : deux séances
-  // que Synchro a coupées en deux plages autour de la relâche produisent deux
-  // VEVENT portant le MÊME UID. Le TP du mercredi de STT 1700 en produit quatre.
-  // Quand ics.ts distinguera les plages, ce test doit devenir :
-  //   expect(new Set(uids).size).toBe(events.length);
-  it("DÉFAUT CONNU : des VEVENT distincts partagent un UID (plages coupées)", () => {
+  // Défaut corrigé (2026-09-09) : Synchro coupe une séance en plusieurs plages
+  // autour de la relâche ; chaque plage est un VEVENT et doit avoir son UID
+  // (la date de début en fait partie). Le TP du mercredi de STT 1700 a quatre
+  // plages → quatre UID distincts.
+  it("donne un UID distinct à chaque VEVENT, plages coupées comprises", () => {
     const uids = events.map((e) => e.uid);
     expect(uids).toHaveLength(17);
-    expect(new Set(uids).size).toBe(10);
-    const duplicated = uids.filter((u, i) => uids.indexOf(u) !== i);
-    expect(new Set(duplicated)).toEqual(
-      new Set([
-        "A26-MAT1600-A102-TP-5-0830@synchro-calendrier",
-        "A26-MAT1600-A-TH-1-0830@synchro-calendrier",
-        "A26-STT1700-A-TH-1-1330@synchro-calendrier",
-        "A26-STT1700-A-TH-2-1230@synchro-calendrier",
-        "A26-STT1700-A103-TP-3-1330@synchro-calendrier",
-      ]),
-    );
-    // Le TP du mercredi : quatre plages, quatre VEVENT, un seul UID.
-    expect(uids.filter((u) => u === "A26-STT1700-A103-TP-3-1330@synchro-calendrier")).toHaveLength(4);
+    expect(new Set(uids).size).toBe(events.length);
+    expect(uids.filter((u) => u.startsWith("A26-STT1700-A103-TP-3-1330-"))).toHaveLength(4);
+    expect(uids).toContain("A26-STT1700-A103-TP-3-1330-20260907@synchro-calendrier");
   });
 
-  // DÉFAUT CONNU — voir le rapport. Dans parse.ts, `notes` est accumulé pour
-  // tout le bloc <h2> puis recopié sur chaque cours du bloc. La séance « À
-  // communiquer / En ligne » appartient au TH de MAT 1600, mais la note se
-  // retrouve aussi sur le TP A102, qui n'a aucune séance en ligne.
-  it("DÉFAUT CONNU : une note propre au TH est recopiée sur le TP du même bloc", () => {
+  // Défaut corrigé (2026-09-09) : la note « séance en ligne, jour à communiquer »
+  // appartient au TH de MAT 1600 et ne doit pas apparaître sur le TP du même bloc.
+  it("rattache une note propre au TH à ce cours seulement", () => {
     const th = schedule.courses.find((c) => c.code === "MAT1600" && c.component === "TH")!;
     const tp = schedule.courses.find((c) => c.code === "MAT1600" && c.component === "TP")!;
     const note = "Séance TH 08:30–10:30, jour à communiquer (En ligne)";
     expect(th.notes).toEqual([note]);
-    expect(tp.notes).toEqual([note]); // attendu après correction : undefined
+    expect(tp.notes).toBeUndefined();
   });
 });
 
@@ -382,55 +368,42 @@ describe("chaîne complète — collage du texte de la page Liste", () => {
 // ===========================================================================
 
 describe("couture popup → store — provenance d'un collage", () => {
-  // Reproduction fidèle de l'expression de src/popup/popup.ts (importPasted).
-  // À garder synchronisée : c'est elle qui décide si un collage écrase l'horaire
-  // complet déjà stocké.
-  const popupSourceHeuristic = (s: Schedule): "liste" | "centre" =>
-    s.exams.length || s.courses.some((c) => c.meetings.some((m) => m.dateStart)) ? "liste" : "centre";
+  // Le popup utilise parsePasted, qui rend la provenance reconnue à l'extraction
+  // (défaut corrigé le 2026-09-09 : une heuristique sur les dates répondait
+  // toujours « liste », car parse.ts remplit les plages manquantes).
+  const centre = parsePasted(fixture("centre-etudiant-A26.txt"), { capturedAt: CAPTURED_AT });
 
-  const centre = parsePastedText(fixture("centre-etudiant-A26.txt"), { capturedAt: CAPTURED_AT });
-
-  it("reconnaît bien un collage du Centre étudiant à l'extraction", () => {
-    // textToCapture, lui, fait la distinction correctement.
+  it("reconnaît bien un collage du Centre étudiant", () => {
     expect(textToCapture(fixture("centre-etudiant-A26.txt")).source).toBe("centre");
     expect(textToCapture(fixture("liste-A26.txt")).source).toBe("liste");
-    expect(centre.exams).toHaveLength(0);
+    expect(centre.source).toBe("centre");
+    expect(parsePasted(fixture("liste-A26.txt"), { capturedAt: CAPTURED_AT }).source).toBe("liste");
+    expect(centre.schedule.exams).toHaveLength(0);
+    // Les plages sont remplies par défaut : elles ne permettent pas de deviner la source.
+    expect(centre.schedule.courses.every((c) => c.meetings.every((m) => m.dateStart !== ""))).toBe(true);
   });
 
-  // DÉFAUT CONNU — voir le rapport. `m.dateStart` n'est jamais vide : quand la
-  // page ne donne pas de dates, parse.ts remplit la plage par défaut du
-  // trimestre (defaultRange). L'heuristique du popup répond donc toujours
-  // « liste », et mergeCapture laisse un résumé du Centre étudiant écraser un
-  // horaire complet — exactement ce que mergeCapture devait empêcher.
-  it("DÉFAUT CONNU : un collage du Centre étudiant est étiqueté « liste »", () => {
-    expect(centre.courses.every((c) => c.meetings.every((m) => m.dateStart !== ""))).toBe(true);
-    expect(popupSourceHeuristic(centre)).toBe("liste"); // attendu après correction : "centre"
-
+  it("un collage du Centre étudiant n'écrase pas un horaire complet stocké", () => {
     const complet = parseCapture(extractCapture(parseDoc(fixture("liste-A26.html")))!, { capturedAt: CAPTURED_AT });
     let state = mergeCapture(emptyState(), complet, "liste");
     expect(state.schedules["A26"]?.exams).toHaveLength(5);
-
-    state = mergeCapture(state, centre, popupSourceHeuristic(centre));
-    // Les cinq examens et les vraies plages de dates sont perdus.
-    expect(state.schedules["A26"]?.exams).toHaveLength(0); // attendu après correction : 5
+    state = mergeCapture(state, centre.schedule, centre.source);
+    expect(state.schedules["A26"]?.exams).toHaveLength(5);
     expect(state.sources["A26"]).toBe("liste");
-
-    // Avec la bonne étiquette, mergeCapture protège déjà l'horaire complet.
-    const protege = mergeCapture(mergeCapture(emptyState(), complet, "liste"), centre, "centre");
-    expect(protege.schedules["A26"]?.exams).toHaveLength(5);
   });
 
-  // DÉFAUT CONNU — voir le rapport. `capturedAt` est un instant UTC
-  // (`new Date().toISOString()` dans synchro.ts et popup.ts), mais parse.ts en
-  // tire une date de calendrier locale pour deviner le trimestre quand la page
-  // n'affiche ni libellé ni dates. Le 31 décembre à 20 h à Montréal, la date
-  // UTC est déjà le 1er janvier.
-  it("DÉFAUT CONNU : un collage du Centre étudiant le 31/12 au soir est classé H27", () => {
+  // Défaut corrigé (2026-09-09) : `capturedAt` est un instant UTC ; la date de
+  // calendrier locale est passée à part (`localDate`) pour deviner le trimestre
+  // quand la page n'affiche ni libellé ni dates. Le 31 décembre à 20 h à
+  // Montréal, la date UTC est déjà le 1er janvier.
+  it("classe un collage du 31/12 au soir dans A26 grâce à la date locale", () => {
     const raw = textToCapture(fixture("centre-etudiant-A26.txt"));
     expect(raw.termLabel).toBe(""); // aucune ancre de trimestre sur cette page
-    const soir = parseCapture(raw, { capturedAt: "2027-01-01T01:00:00.000Z" }); // 31/12 20 h EST
-    expect(soir.term.code).toBe("H27"); // attendu après correction : "A26"
-    const jour = parseCapture(raw, { capturedAt: "2026-12-31T17:00:00.000Z" }); // 31/12 12 h EST
+    const soir = parseCapture(raw, { capturedAt: "2027-01-01T01:00:00.000Z", localDate: "2026-12-31" });
+    expect(soir.term.code).toBe("A26");
+    // Sans date locale, le repli UTC reste ce qu'il est : documenté, pas caché.
+    expect(parseCapture(raw, { capturedAt: "2027-01-01T01:00:00.000Z" }).term.code).toBe("H27");
+    const jour = parseCapture(raw, { capturedAt: "2026-12-31T17:00:00.000Z" });
     expect(jour.term.code).toBe("A26");
   });
 });

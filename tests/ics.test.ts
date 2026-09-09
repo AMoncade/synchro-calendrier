@@ -322,31 +322,31 @@ describe("generateIcs — récurrences", () => {
   const byUid = (prefix: string) => events.find((e) => prop(e, "UID")!.value.startsWith(prefix))!;
 
   it("place DTSTART/DTEND sur la première occurrence non exclue", () => {
-    const mat = byUid("A26-MAT1400-A-TH-1-0830@");
+    const mat = byUid("A26-MAT1400-A-TH-1-0830-");
     expect(prop(mat, "DTSTART")).toMatchObject({ params: { TZID: "America/Toronto" }, value: "20260907T083000" });
     expect(prop(mat, "DTEND")).toMatchObject({ params: { TZID: "America/Toronto" }, value: "20260907T103000" });
     // IFT : dateStart un lundi, première occurrence le mardi.
-    expect(prop(byUid("A26-IFT1015-B-TP-2-1630@"), "DTSTART")!.value).toBe("20260908T163000");
+    expect(prop(byUid("A26-IFT1015-B-TP-2-1630-"), "DTSTART")!.value).toBe("20260908T163000");
     // PHY : 09-03 exclu, DTSTART glisse au 09-10 et n'apparaît pas en EXDATE.
-    const phy = byUid("A26-PHY1441-A01-TH-4-1900@");
+    const phy = byUid("A26-PHY1441-A01-TH-4-1900-");
     expect(prop(phy, "DTSTART")!.value).toBe("20260910T190000");
     expect(prop(phy, "EXDATE")!.value).not.toContain("20260903");
   });
 
   it("liste les EXDATE à l'heure de DTSTART, seulement pour les dates de la série", () => {
-    expect(prop(byUid("A26-MAT1400-A-TH-1-0830@"), "EXDATE")).toMatchObject({
+    expect(prop(byUid("A26-MAT1400-A-TH-1-0830-"), "EXDATE")).toMatchObject({
       params: { TZID: "America/Toronto" },
       value: "20260914T083000",
     });
-    expect(prop(byUid("A26-PHY1441-A01-TH-4-1900@"), "EXDATE")!.value).toBe("20261022T190000");
-    expect(prop(byUid("A26-MAT1400-A-TH-3-1330@"), "EXDATE")).toBeUndefined();
-    expect(prop(byUid("A26-IFT1015-B-TP-2-1630@"), "EXDATE")).toBeUndefined();
+    expect(prop(byUid("A26-PHY1441-A01-TH-4-1900-"), "EXDATE")!.value).toBe("20261022T190000");
+    expect(prop(byUid("A26-MAT1400-A-TH-3-1330-"), "EXDATE")).toBeUndefined();
+    expect(prop(byUid("A26-IFT1015-B-TP-2-1630-"), "EXDATE")).toBeUndefined();
   });
 
   it("borne la série par UNTIL en UTC = fin de dateEnd en heure de Toronto", () => {
     // 2026-09-28 23:59:59 EDT → 2026-09-29 03:59:59Z ; 2026-12-10 23:59:59 EST → 04:59:59Z.
-    expect(prop(byUid("A26-MAT1400-A-TH-1-0830@"), "RRULE")!.value).toBe("FREQ=WEEKLY;UNTIL=20260929T035959Z");
-    expect(prop(byUid("A26-PHY1441-A01-TH-4-1900@"), "RRULE")!.value).toBe("FREQ=WEEKLY;UNTIL=20261211T045959Z");
+    expect(prop(byUid("A26-MAT1400-A-TH-1-0830-"), "RRULE")!.value).toBe("FREQ=WEEKLY;UNTIL=20260929T035959Z");
+    expect(prop(byUid("A26-PHY1441-A01-TH-4-1900-"), "RRULE")!.value).toBe("FREQ=WEEKLY;UNTIL=20261211T045959Z");
   });
 
   it("omet un meeting dont toutes les occurrences sont exclues", () => {
@@ -355,7 +355,7 @@ describe("generateIcs — récurrences", () => {
       dtstamp,
     });
     const uids = parseEvents(out).map((e) => prop(e, "UID")!.value);
-    expect(uids).not.toContain("A26-MAT1400-A-TH-1-0830@synchro-calendrier");
+    expect(uids).not.toContain("A26-MAT1400-A-TH-1-0830-20260907@synchro-calendrier");
     expect(uids).toHaveLength(5);
   });
 });
@@ -365,7 +365,7 @@ describe("generateIcs — identité et déterminisme", () => {
 
   it("dérive des UID stables du modèle", () => {
     expect(meetingUid("A26", fixture.courses[0]!, fixture.courses[0]!.meetings[0]!)).toBe(
-      "A26-MAT1400-A-TH-1-0830@synchro-calendrier",
+      "A26-MAT1400-A-TH-1-0830-20260907@synchro-calendrier",
     );
     expect(examUid("A26", fixture.exams[0]!)).toBe("A26-MAT1400-examen-2026-10-20@synchro-calendrier");
     const uids = events.map((e) => prop(e, "UID")!.value);

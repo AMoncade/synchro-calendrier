@@ -26,8 +26,14 @@ import {
 export const ROUND_END_TO_HALF_HOUR = true;
 
 export interface ParseOptions {
-  /** Instant de la capture, ISO 8601 ; sert aussi de repli pour deviner le trimestre. */
+  /** Instant de la capture, ISO 8601 (UTC accepté). */
   capturedAt: string;
+  /**
+   * Date de calendrier locale « AAAA-MM-JJ » au moment de la capture. Sert de
+   * dernier repli pour deviner le trimestre ; sans elle, on retombe sur la date
+   * UTC de `capturedAt`, qui peut être le lendemain en soirée à Montréal.
+   */
+  localDate?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -143,14 +149,15 @@ function examLabel(kind: ExamKind, volet: string): string {
 // ---------------------------------------------------------------------------
 
 function resolveTerm(raw: RawCapture, opts: ParseOptions, dates: string[]): Term {
+  const today = opts.localDate ?? opts.capturedAt.slice(0, 10);
   const code =
     termCodeFromLabel(raw.termLabel) ??
     (dates[0] ? inferTermCode(dates[0]) : undefined) ??
-    inferTermCode(opts.capturedAt.slice(0, 10));
+    inferTermCode(today);
   const cal = code ? getTermCalendar(code) : undefined;
   if (cal) return cal.term;
   const sorted = [...dates].sort();
-  const start = sorted[0] ?? opts.capturedAt.slice(0, 10);
+  const start = sorted[0] ?? today;
   const end = sorted[sorted.length - 1] ?? start;
   return { code: code ?? "", label: code ? labelFromCode(code) : "Trimestre inconnu", start, end };
 }
@@ -192,7 +199,14 @@ export function parseCapture(raw: RawCapture, opts: ParseOptions): Schedule {
     if (!head) continue;
     const byKey = new Map<string, Course>();
     const inherited: Inherited = { classNumber: "", section: "", component: "" };
-    const notes: string[] = [];
+    // Notes propres à un cours (séance en ligne sans jour…) : rattachées à ce cours
+    // seulement ; les remarques du bloc, elles, valent pour tous ses cours.
+    const notesByKey = new Map<string, string[]>();
+    const noteFor = (key: string, text: string) => {
+      const list = notesByKey.get(key) ?? [];
+      list.push(text);
+      notesByKey.set(key, list);
+    };
 
     for (const row of block.rows) {
       const volet = row.component.trim();
@@ -224,13 +238,13 @@ export function parseCapture(raw: RawCapture, opts: ParseOptions): Schedule {
       const location = normalizeSpaces(row.location);
       if (!dt) {
         // Ligne sans plage horaire (ex. « En ligne » seul sur le Centre étudiant).
-        if (location) notes.push(`${course.section ? `Section ${course.section}` : head.code} : ${location}`);
+        if (location) noteFor(key, `${course.section ? `Section ${course.section}` : head.code} : ${location}`);
         continue;
       }
       const range = parseDateRange(row.dates) ?? fallback;
       if (dt.weekday === undefined) {
         const where = location ? ` (${location})` : "";
-        notes.push(`Séance ${component} ${dt.start}–${dt.end}, jour à communiquer${where}`);
+        noteFor(key, `Séance ${component} ${dt.start}–${dt.end}, jour à communiquer${where}`);
         continue;
       }
       const meeting: Meeting = {
@@ -244,8 +258,9 @@ export function parseCapture(raw: RawCapture, opts: ParseOptions): Schedule {
       course.meetings.push(meeting);
     }
 
-    for (const c of byKey.values()) {
-      const own = dedupe(notes.concat(block.notes.map(normalizeSpaces).filter(Boolean)));
+    const blockNotes = block.notes.map(normalizeSpaces).filter(Boolean);
+    for (const [key, c] of byKey) {
+      const own = dedupe((notesByKey.get(key) ?? []).concat(blockNotes));
       if (own.length) c.notes = own;
       courses.push(c);
     }
@@ -413,4 +428,15 @@ function parseCentreText(lines: string[]): RawCourseBlock[] {
 /** Texte collé par l'étudiant → Schedule (mêmes règles que la capture DOM). */
 export function parsePastedText(text: string, opts: ParseOptions): Schedule {
   return parseCapture(textToCapture(text), opts);
+}
+
+/**
+ * Comme `parsePastedText`, mais rend aussi la provenance reconnue (« liste » ou
+ * « centre ») : c'est elle qui décide si le collage peut remplacer un horaire
+ * complet déjà stocké. Ne pas la redeviner à partir du Schedule : les plages de
+ * dates y sont toujours remplies (repli sur le calendrier), donc indiscernables.
+ */
+export function parsePasted(text: string, opts: ParseOptions): { schedule: Schedule; source: RawCapture["source"] } {
+  const raw = textToCapture(text);
+  return { schedule: parseCapture(raw, opts), source: raw.source };
 }

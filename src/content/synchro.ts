@@ -10,11 +10,29 @@ import { parseCapture } from "../core/parse";
 import type { Message } from "../lib/messages";
 import { detectPage, extractCapture } from "./extract";
 
+/** Silence après la dernière mutation avant de capturer. */
 const DEBOUNCE_MS = 400;
+/**
+ * Délai maximal entre la première mutation et la capture : une page qui mute en
+ * continu (voile « traitement en cours », minuterie) ne doit pas repousser la
+ * capture indéfiniment.
+ */
+const MAX_WAIT_MS = 2500;
+
 let lastSignature = "";
-let timer: ReturnType<typeof setTimeout> | undefined;
+let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+let maxWaitTimer: ReturnType<typeof setTimeout> | undefined;
+
+function localDate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 function captureNow(): void {
+  clearTimeout(debounceTimer);
+  clearTimeout(maxWaitTimer);
+  debounceTimer = maxWaitTimer = undefined;
+
   const page = detectPage(document);
   if (!page) return;
   const raw = extractCapture(document);
@@ -24,7 +42,8 @@ function captureNow(): void {
   if (signature === lastSignature) return;
   lastSignature = signature;
 
-  const schedule = parseCapture(raw, { capturedAt: new Date().toISOString() });
+  const now = new Date();
+  const schedule = parseCapture(raw, { capturedAt: now.toISOString(), localDate: localDate(now) });
   if (schedule.courses.length === 0) return;
 
   const message: Message = { type: "SCHEDULE_CAPTURED", schedule, source: raw.source };
@@ -35,8 +54,9 @@ function captureNow(): void {
 }
 
 function scheduleCapture(): void {
-  if (timer !== undefined) clearTimeout(timer);
-  timer = setTimeout(captureNow, DEBOUNCE_MS);
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(captureNow, DEBOUNCE_MS);
+  if (maxWaitTimer === undefined) maxWaitTimer = setTimeout(captureNow, MAX_WAIT_MS);
 }
 
 scheduleCapture();

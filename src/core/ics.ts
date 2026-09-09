@@ -144,7 +144,11 @@ function uidPart(value: string): string {
   return value.replace(/[^A-Za-z0-9._-]+/g, "");
 }
 
-/** `<term>-<code>-<section>-<composante>-<jour ISO>-<HHMM>@synchro-calendrier`. */
+/**
+ * `<term>-<code>-<section>-<composante>-<jour ISO>-<HHMM>-<AAAAMMJJ début>@synchro-calendrier`.
+ * La date de début fait partie de l'identité : Synchro coupe une même séance en
+ * plusieurs plages (avant/après la relâche), qui sont des VEVENT distincts.
+ */
 export function meetingUid(termCode: string, course: Course, meeting: Meeting): string {
   const parts = [
     termCode,
@@ -153,6 +157,7 @@ export function meetingUid(termCode: string, course: Course, meeting: Meeting): 
     course.component,
     String(meeting.weekday),
     meeting.start.replace(":", ""),
+    meeting.dateStart.replace(/-/g, ""),
   ];
   return `${parts.map(uidPart).join("-")}@${UID_DOMAIN}`;
 }

@@ -8,7 +8,7 @@ import { badgeText, nextExam } from "../core/countdown";
 import { expandSchedule } from "../core/expand";
 import { generateIcs } from "../core/ics";
 import type { Conflict, Course, Exam, Schedule } from "../core/model";
-import { parsePastedText } from "../core/parse";
+import { parsePasted } from "../core/parse";
 import { currentTerm } from "../core/store";
 import type { Message, StoredState } from "../lib/messages";
 
@@ -136,13 +136,13 @@ async function importPasted(textareaId: string, errorId: string): Promise<void> 
   const text = $<HTMLTextAreaElement>(textareaId).value;
   const err = $(errorId);
   err.hidden = true;
-  const schedule = parsePastedText(text, { capturedAt: localNow().iso });
+  const now = localNow();
+  const { schedule, source } = parsePasted(text, { capturedAt: now.iso, localDate: now.date });
   if (schedule.courses.length === 0) {
     err.textContent = "Aucun cours reconnu. Copiez tout le texte de la page « Votre horaire cours » (vue Liste).";
     err.hidden = false;
     return;
   }
-  const source = schedule.exams.length || schedule.courses.some((c) => c.meetings.some((m) => m.dateStart)) ? "liste" : "centre";
   await send({ type: "SCHEDULE_CAPTURED", schedule, source });
   $<HTMLTextAreaElement>(textareaId).value = "";
   await refresh();
