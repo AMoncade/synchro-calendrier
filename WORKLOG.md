@@ -35,6 +35,15 @@
   `background/index.ts`, `core/store.ts`, `lib/messages.ts`, popup complet. **120 tests
   verts, build OK** — l'extension est assemblée de bout en bout mais **pas encore chargée dans
   Chrome** : c'est la prochaine vérification (chrome://extensions → charger `dist/`).
+- Branche `store` mergée (d65badc) : icônes réelles, README, fiche Web Store (`docs/STORE.md`).
+  Script `npm run icons` ajouté. Dépendance : `@resvg/resvg-js` ^2.6.2 (devDependency,
+  2026-09-09) — rasterise `public/icons/icon.svg` en PNG 16/48/128 via
+  `scripts/make-icons.mjs`. Moteur SVG en Rust livré en binaires préconstruits : aucun
+  navigateur headless, ni node-gyp, ni ImageMagick ; génération reproductible avec `npm ci`.
+  Outil de build uniquement, jamais importé par l'extension. ~4,4 Mo dans node_modules.
+- Extraction vérifiée sur la **vraie page** Synchro (sonde injectée) : 4 cours, rangées et
+  trimestre exacts. Variante réelle trouvée et corrigée (2b3e39a) : rangée vide avant
+  « Remarques cours » dans le premier tableau de remarques.
 - Décision : la colonne « URL » (icône SGA) est ignorée par l'extraction et le repli texte.
 - Décision : le content script fait extraction **et** parsing, le service worker ne reçoit
   qu'un `Schedule` (docs/ARCHITECTURE.md §3 mis à jour).
