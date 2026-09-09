@@ -9,7 +9,6 @@ import {
   examUid,
   foldLine,
   formatDtstamp,
-  formatLocation,
   generateIcs,
   meetingUid,
   torontoLocalToUtc,
@@ -354,20 +353,10 @@ describe("libellés et locaux v2", () => {
     expect(examSummary({ ...fixture.exams[0]!, kind: "autre", label: "" })).toBe("MAT1400 — Examen");
   });
 
-  it("retire « Pav. » et le numéro civique du local", () => {
-    // Chaînes relevées telles quelles dans tests/fixtures/liste-A26.txt.
-    expect(formatLocation("B-0215  Pav. 3200 J.-Brillant")).toBe("B-0215, Pavillon J.-Brillant");
-    expect(formatLocation("E-310 Pav. Roger-Gaudry")).toBe("E-310, Pavillon Roger-Gaudry");
-    expect(formatLocation("S1-151 Pav. Jean Coutu")).toBe("S1-151, Pavillon Jean Coutu");
-  });
-
-  it("laisse intact ce qui ne suit pas le motif", () => {
-    expect(formatLocation("En ligne")).toBe("En ligne");
-    expect(formatLocation("AA-1360")).toBe("AA-1360");
-    expect(formatLocation("À communiquer")).toBe("À communiquer");
-    expect(formatLocation("  Z-110  ")).toBe("Z-110");
-    expect(formatLocation("")).toBe("");
-  });
+  // La règle du local (« Pav. », numéro civique, « En ligne », texte inconnu)
+  // est couverte par tests/format.test.ts, qui appartient à `fullLocation`.
+  // Ici, seul compte le fait que le VEVENT passe bien par cette fonction : c'est
+  // l'objet du test « normalise le local du pavillon dans le VEVENT » ci-dessus.
 });
 
 describe("rappels VALARM (v2 §9.2)", () => {
