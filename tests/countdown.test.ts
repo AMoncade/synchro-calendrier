@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badgeText, nextExam } from "../src/core/countdown";
+import { nextExam } from "../src/core/countdown";
 import type { Exam } from "../src/core/model";
 
 function exam(partial: Partial<Exam> & Pick<Exam, "date">): Exam {
@@ -57,21 +57,10 @@ describe("nextExam", () => {
   it("rejette un instant mal formé", () => {
     expect(() => nextExam(EXAMS, "2026-09-14")).toThrow(RangeError);
   });
-});
 
-describe("badgeText", () => {
-  it("est vide sans examen", () => {
-    expect(badgeText(undefined)).toBe("");
-  });
-
-  it("affiche le nombre de jours jusqu'à 99", () => {
-    expect(badgeText({ exam: INTRA, daysLeft: 0 })).toBe("0");
-    expect(badgeText({ exam: INTRA, daysLeft: 7 })).toBe("7");
-    expect(badgeText({ exam: INTRA, daysLeft: 99 })).toBe("99");
-  });
-
-  it("plafonne à 99+", () => {
-    expect(badgeText({ exam: INTRA, daysLeft: 100 })).toBe("99+");
-    expect(badgeText(nextExam(EXAMS, "2026-06-01T08:00"))).toBe("99+");
+  it("compte juste sur une longue échéance, par-dessus quatre changements de mois", () => {
+    // Reprise de l'ancienne couverture de badgeText, qui plafonnait à « 99+ » :
+    // le seul endroit où un écart de plus de trois mois était vérifié.
+    expect(nextExam(EXAMS, "2026-06-01T08:00")?.daysLeft).toBe(141);
   });
 });

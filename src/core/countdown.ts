@@ -1,5 +1,9 @@
-// Compte à rebours vers le prochain examen, pour le badge de l'extension.
+// Compte à rebours vers le prochain examen, consommé par `today.ts` : la ligne
+// « ⏱ examen dans N jours » de l'onglet AUJOURD'HUI, quand l'échéance est proche.
 // L'instant courant est toujours fourni par l'appelant (aucun Date.now() ici).
+//
+// Le badge de l'extension ne passe plus par ici : depuis la spec v2 §10.3 il
+// compte les cours restants aujourd'hui (`alerts.classesRemainingToday`).
 
 import type { Exam } from "./model";
 
@@ -53,10 +57,4 @@ export function nextExam(exams: Exam[], now: string): NextExam | undefined {
   }
   if (!best) return undefined;
   return { exam: best, daysLeft: dayNumber(best.date) - dayNumber(today) };
-}
-
-/** Texte du badge Chrome (4 caractères max) : "" si aucun examen, "0"…"99", puis "99+". */
-export function badgeText(result: NextExam | undefined): string {
-  if (!result) return "";
-  return result.daysLeft > 99 ? "99+" : String(result.daysLeft);
 }
