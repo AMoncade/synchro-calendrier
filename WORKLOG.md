@@ -17,6 +17,12 @@
   icon32 (48, branche `today`), `core/ics.ts` VALARM/SUMMARY v2 + `core/gcal.ts` (f4,
   branche `ics-v2`). Intégratrice : popup à onglets (écrit, en attente des modules), badge =
   cours restants aujourd'hui, manifest, README/captures.
+- **v2 livrée** (0519cdb → 03ba4db, version 0.2.0, 245 tests) : modules `format` (a6),
+  `today`/`alerts` (48), `ics-v2`/`gcal` (f4) mergés ; popup à onglets écrit par
+  l'intégratrice ; icône 32 px ; « 1er » et « hier » (format-2). Le « 1 » vu par
+  l'utilisateur dans la marge était le glyphe ℹ des remarques, remplacé par « Note : ».
+  En attente : captures d'écran de l'utilisateur, branches `ics-location` (fullLocation
+  partagé) et `countdown-cleanup` (module orphelin).
 
 ## 2026-09-09 — Phase 0 (en cours)
 
