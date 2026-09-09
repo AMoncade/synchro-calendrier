@@ -1,10 +1,11 @@
 // Popup v2 : trois onglets (Aujourd'hui, Semaine, Examens), pied de page fixe,
-// menu ⋯, repli « coller un horaire » visible seulement quand la capture manque.
+// menu, repli « coller un horaire » visible seulement quand la capture manque.
 // Tout le calcul vient de core/ et format/ ; ici il n'y a que du rendu, des
 // messages et un peu d'état d'interface (onglet courant, sections dépliées).
+// Aucun symbole Unicode décoratif : la police du popup ne les rend pas (voir icons.ts).
 
 import { excludedDates } from "../core/calendar-udem";
-import { busyDay, classesRemainingToday, examClusters } from "../core/alerts";
+import { classesRemainingToday, examClusters, minutesOfTime } from "../core/alerts";
 import { findConflicts } from "../core/conflicts";
 import { expandSchedule } from "../core/expand";
 import { googleCalendarUrl } from "../core/gcal";
@@ -15,7 +16,6 @@ import { currentTerm } from "../core/store";
 import { buildTodayView, type TodayItem, type TodayView } from "../core/today";
 import {
   componentName,
-  courseColors,
   dayMonthShort,
   daysUntil,
   formatDaysUntil,
@@ -31,6 +31,7 @@ import {
   weekdayName,
 } from "../format";
 import type { Message, StoredState } from "../lib/messages";
+import { bullet, icon } from "./icons";
 
 const SYNCHRO_URL = "https://academique-dmz.synchro.umontreal.ca/";
 const REPORT_URL = "https://github.com/AMoncade/synchro-calendrier/issues/new";
@@ -38,6 +39,17 @@ const CAMPUS_MAP_URL = "https://plancampus.umontreal.ca/montreal/";
 const UI_KEY = "synchro-calendrier.ui";
 const TAB_RESET_MS = 4 * 3600 * 1000;
 const REFRESH_MS = 30_000;
+/** « dans N j » n'est affiché que sous cet horizon ; au-delà, la date suffit. */
+const DAYS_LEFT_HORIZON = 45;
+/** Aperçu « le reste de la semaine » sous l'onglet Aujourd'hui. */
+const PREVIEW_MAX = 4;
+
+/**
+ * Palette fixe, huit couleurs bien séparées, attribuées aux sigles triés :
+ * la même couleur pour un cours dans les trois onglets, et deux cours voisins
+ * (MAT1500 / MAT1600) ne tombent jamais sur deux bleus.
+ */
+const PALETTE = ["#2f7de1", "#e0603c", "#2ba36b", "#c8449b", "#e6a417", "#7b5cd6", "#1fa8b9", "#8a6d3b"];
 
 type Tab = "today" | "week" | "exams";
 interface UiState {
@@ -55,22 +67,40 @@ const el = (tag: string, className = "", text?: string): HTMLElement => {
   if (text !== undefined) e.textContent = text;
   return e;
 };
+const withIcon = (name: Parameters<typeof icon>[0], text: string, className = "inline"): HTMLElement => {
+  const e = el("span", className);
+  e.append(icon(name), document.createTextNode(text));
+  return e;
+};
 
-function localNow(): { iso: string; date: string; dateTime: string; ms: number } {
+function localNow(): { iso: string; date: string; dateTime: string; minutes: number } {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  return { iso: d.toISOString(), date, dateTime: `${date}T${pad(d.getHours())}:${pad(d.getMinutes())}`, ms: d.getTime() };
+  return { iso: d.toISOString(), date, dateTime: `${date}T${pad(d.getHours())}:${pad(d.getMinutes())}`, minutes: d.getHours() * 60 + d.getMinutes() };
 }
+type Now = ReturnType<typeof localNow>;
 
 async function send<T = unknown>(message: Message): Promise<T> {
   return (await chrome.runtime.sendMessage(message)) as T;
+}
+
+function addDays(date: string, n: number): string {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d) + n * 86_400_000).toISOString().slice(0, 10);
+}
+function mondayOf(date: string): string {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7;
+  return addDays(date, -(dow - 1));
 }
 
 // ---------------------------------------------------------------------------
 // État d'interface persistant (onglet, section dépliée, préférences)
 
 let ui: UiState = { tab: "today", openedAt: 0, expanded: null, hidePastExams: false, courseAlarms: false };
+/** Décalage de semaine dans l'onglet Semaine (0 = semaine courante), non persisté. */
+let weekOffset = 0;
 
 async function loadUi(): Promise<void> {
   try {
@@ -98,6 +128,9 @@ interface View {
   excluded: string[];
 }
 
+let palette = new Map<string, string>();
+const colorOf = (code: string): string => palette.get(code) ?? "var(--muted)";
+
 /** « MAT 1400-A Calcul 1 (TH) » → morceaux affichables. */
 function describe(o: Occurrence): { sigle: string; section: string; component: string; title: string } {
   const m = /^([A-Z]{2,4} ?\d{4}[A-Z]?)(?:-(\S+))? (.*) \((TH|TP|LAB|AUTRE)\)$/.exec(o.label);
@@ -105,9 +138,11 @@ function describe(o: Occurrence): { sigle: string; section: string; component: s
   return { sigle: sigle(m[1] as string), section: m[2] ?? "", component: componentName(m[4] as "TH"), title: m[3] as string };
 }
 
-/** Palette de l'horaire courant : couleurs distinctes jusqu'à neuf cours (format/course.ts). */
-let palette = new Map<string, { h: number; css: string }>();
-const colorOf = (code: string): string => palette.get(code)?.css ?? "var(--muted)";
+function shortLabel(o: Occurrence): string {
+  if (o.kind === "examen") return o.label.replace(/^([A-Z]+) (\d)/, "$1$2");
+  const d = describe(o);
+  return `${d.sigle}${d.section ? `-${d.section}` : ""} · ${d.component}`;
+}
 
 function swatch(code: string): HTMLElement {
   const s = el("span", "swatch");
@@ -118,18 +153,18 @@ function swatch(code: string): HTMLElement {
 // ---------------------------------------------------------------------------
 // Onglet AUJOURD'HUI
 
-function renderToday(view: View, now: ReturnType<typeof localNow>): void {
+function renderToday(view: View, now: Now): void {
   const panel = $("panel-today");
   const today: TodayView = buildTodayView(view.occurrences, view.schedule.exams, now.dateTime);
   panel.replaceChildren();
 
   const heading =
     today.kind === "tomorrow" ? `Demain — ${longDate(today.date)}`
-    : today.kind === "next-day" || today.kind === "nothing" ? longDate(today.date)
     : today.kind === "term-over" ? "Aucun cours au calendrier"
     : longDate(today.date);
   panel.append(el("h2", "", heading.charAt(0).toUpperCase() + heading.slice(1)));
 
+  const isToday = today.kind === "today";
   if (today.kind === "term-over") {
     panel.append(el("p", "empty", "Le trimestre est terminé. Ouvrez Synchro pour capturer le suivant."));
   } else if (today.kind === "nothing" && today.items.length === 0) {
@@ -137,89 +172,129 @@ function renderToday(view: View, now: ReturnType<typeof localNow>): void {
   } else {
     if (today.kind === "nothing") panel.append(el("p", "dim", "Rien aujourd'hui. Prochain jour de cours :"));
     const list = el("div");
-    for (const item of today.items) list.append(todayItem(item));
+    const dayDiff = daysUntil(today.date, now.date);
+    for (const item of today.items) list.append(todayItem(item, isToday, dayDiff, now));
     if (today.hiddenCount > 0) list.append(el("p", "dim", `+ ${today.hiddenCount} autres`));
     panel.append(list);
   }
 
   const clusters = examClusters(view.schedule.exams).filter((c) => daysUntil(c.start, now.date) <= 14 && daysUntil(c.end, now.date) >= 0);
   const first = clusters[0];
-  if (first) panel.append(el("p", "warn", `⚠ ${first.exams.length} examens entre le ${shortDate(first.start)} et le ${shortDate(first.end)}`));
+  if (first) panel.append(withIcon("warning", `${first.exams.length} examens entre le ${shortDate(first.start)} et le ${shortDate(first.end)}`, "warn"));
   if (today.busy) panel.append(el("p", "dim", "Journée chargée."));
   if (today.nextExam) {
     const { exam, daysLeft } = today.nextExam;
-    panel.append(el("p", "sub", `⏱ ${sigle(exam.courseCode)} — ${exam.label} ${daysLeft === 0 ? "aujourd'hui" : `dans ${daysLeft} jour${daysLeft > 1 ? "s" : ""}`}`));
+    panel.append(withIcon("clock", `${sigle(exam.courseCode)} — ${exam.label} ${daysLeft === 0 ? "aujourd'hui" : `dans ${daysLeft} jour${daysLeft > 1 ? "s" : ""}`}`, "inline sub"));
   }
   const conflicts = findConflicts(view.occurrences).filter((c) => c.date >= now.date);
-  if (conflicts.length) panel.append(el("p", "warn", `⚠ ${conflicts.length} chevauchement${conflicts.length > 1 ? "s" : ""} à venir — voir l'onglet Semaine.`));
+  if (conflicts.length) panel.append(withIcon("warning", `${conflicts.length} chevauchement${conflicts.length > 1 ? "s" : ""} à venir — voir l'onglet Semaine.`, "warn"));
+
+  // Aperçu : les prochaines séances après le jour affiché, sur sept jours.
+  const after = view.occurrences.filter((o) => o.date > today.date && o.date <= addDays(today.date, 7)).slice(0, PREVIEW_MAX);
+  if (after.length) {
+    const box = el("div", "preview");
+    box.append(el("h3", "", "Le reste de la semaine"));
+    for (const o of after) {
+      const row = el("div", "preview-row");
+      row.append(el("span", "when", `${weekdayName(isoWeekday(o.date), "short")} ${o.start}`));
+      const label = el("span");
+      label.append(swatch(o.courseCode), document.createTextNode(shortLabel(o)));
+      row.append(label);
+      box.append(row);
+    }
+    panel.append(box);
+  }
 }
 
-function todayItem(item: TodayItem): HTMLElement {
+function isoWeekday(date: string): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  return ((new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7) as 1);
+}
+
+function todayItem(item: TodayItem, isToday: boolean, dayDiff: number, now: Now): HTMLElement {
   const o = item.occurrence;
   const d = describe(o);
-  const root = el("div", `item ${item.status}`);
-  const bullet = el("span", "bullet", item.status === "now" ? "●" : "○");
+  const root = el("div", `item ${isToday ? item.status : "later"}`);
+  const b = el("span", "bullet");
+  b.append(bullet(isToday && item.status === "now"));
   const body = el("div", "lines");
-  if (item.status === "now") body.append(el("div", "dim", "MAINTENANT"));
-  else if (item.status === "next") body.append(el("div", "dim", "ENSUITE"));
+  if (isToday && item.status === "now") body.append(el("div", "status-label", "MAINTENANT"));
+  else if (isToday && item.status === "next") body.append(el("div", "status-label", "ENSUITE"));
   const title = el("div", "title");
-  title.append(swatch(o.courseCode), document.createTextNode(o.kind === "examen" ? o.label.replace(/^[A-Z]+ /, (s) => s.trim()) : `${d.sigle}${d.section ? `-${d.section}` : ""} `));
+  title.append(swatch(o.courseCode), document.createTextNode(o.kind === "examen" ? shortLabel(o) : `${d.sigle}${d.section ? `-${d.section}` : ""} `));
   if (o.kind === "cours" && d.component) title.append(el("span", "comp", `· ${d.component}`));
   body.append(title);
-  const when = el("div", "sub");
+
   let timing = `${o.start}–${o.end}`;
-  if (item.status === "now" && item.minutesToEnd !== undefined) timing += ` · fini dans ${formatMinutes(item.minutesToEnd)}`;
-  else if (item.minutesToStart !== undefined && item.status !== "done") timing += ` · dans ${formatMinutes(item.minutesToStart)}`;
-  when.textContent = timing;
-  body.append(when);
+  if (isToday) {
+    if (item.status === "now" && item.minutesToEnd !== undefined) timing += ` · fini dans ${formatMinutes(item.minutesToEnd)}`;
+    else if (item.minutesToStart !== undefined && item.status !== "done") timing += ` · dans ${formatMinutes(item.minutesToStart)}`;
+  } else if (dayDiff > 0) {
+    const minutes = dayDiff * 1440 + minutesOfTime(o.start) - now.minutes;
+    if (minutes > 0) timing += ` · dans ${formatMinutes(minutes)}`;
+  }
+  body.append(el("div", "sub", timing));
   body.append(el("div", "sub", formatLocation(o.location)));
-  if (item.sameBuildingAsPrevious) body.append(el("div", "dim", "↳ même pavillon"));
-  root.append(bullet, body);
+  if (item.sameBuildingAsPrevious) body.append(withIcon("turn", "même pavillon", "inline dim"));
+  root.append(b, body);
   return root;
 }
 
 // ---------------------------------------------------------------------------
-// Onglet SEMAINE (liste groupée par jour)
+// Onglet SEMAINE (liste groupée par jour, navigation entre semaines)
 
-function mondayOf(date: string): string {
-  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  const ms = Date.UTC(y, m - 1, d);
-  const dow = new Date(ms).getUTCDay() || 7;
-  return new Date(ms - (dow - 1) * 86_400_000).toISOString().slice(0, 10);
-}
-function addDays(date: string, n: number): string {
-  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  return new Date(Date.UTC(y, m - 1, d) + n * 86_400_000).toISOString().slice(0, 10);
-}
-
-function renderWeek(view: View, now: ReturnType<typeof localNow>): void {
+function renderWeek(view: View, now: Now): void {
   const panel = $("panel-week");
   panel.replaceChildren();
-  const monday = mondayOf(now.date);
+  const monday = addDays(mondayOf(now.date), weekOffset * 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const inWeek = view.occurrences.filter((o) => o.date >= days[0]! && o.date <= days[6]!);
   const byDay = new Map<string, Occurrence[]>();
-  for (const o of view.occurrences) if (o.date >= days[0]! && o.date <= days[6]!) byDay.set(o.date, [...(byDay.get(o.date) ?? []), o]);
-  panel.append(el("h2", "", `Semaine du ${shortDate(monday)}`));
-  const conflicts = findConflicts(view.occurrences.filter((o) => o.date >= days[0]! && o.date <= days[6]!));
-  if (conflicts.length) panel.append(el("p", "warn", `⚠ ${conflicts.map((c) => `${shortDate(c.date)} ${c.start}–${c.end} : ${c.a} ↔ ${c.b}`).join(" · ")}`));
+  for (const o of inWeek) byDay.set(o.date, [...(byDay.get(o.date) ?? []), o]);
+
+  const nav = el("div", "week-nav");
+  const prev = el("button", "ghost iconic") as HTMLButtonElement;
+  prev.append(icon("left"));
+  prev.title = "Semaine précédente";
+  prev.addEventListener("click", () => {
+    weekOffset--;
+    renderWeek(view, now);
+  });
+  const next = el("button", "ghost iconic") as HTMLButtonElement;
+  next.append(icon("right"));
+  next.title = "Semaine suivante";
+  next.addEventListener("click", () => {
+    weekOffset++;
+    renderWeek(view, now);
+  });
+  nav.append(prev, el("h2", "", `Semaine du ${shortDate(monday)}`), next);
+  if (weekOffset !== 0) {
+    const back = el("button", "ghost", "Aujourd'hui");
+    back.addEventListener("click", () => {
+      weekOffset = 0;
+      renderWeek(view, now);
+    });
+    nav.append(back);
+  }
+  panel.append(nav);
+
+  const conflicts = findConflicts(inWeek);
+  if (conflicts.length) panel.append(withIcon("warning", conflicts.map((c) => `${shortDate(c.date)} ${c.start}–${c.end} : ${c.a} et ${c.b}`).join(" · "), "warn"));
 
   let any = false;
   days.forEach((date, i) => {
     const items = byDay.get(date) ?? [];
     if (items.length === 0 && i >= 5) return; // samedi/dimanche seulement s'il y a quelque chose
     any = any || items.length > 0;
-    const day = el("div", `day${date === now.date ? " today" : ""}`);
+    const cls = date === now.date ? " today" : date < now.date ? " past" : "";
+    const day = el("div", `day${cls}`);
     day.append(el("div", "dayname", `${weekdayName((i + 1) as 1, "long")} ${dayMonthShort(date)}`));
-    if (items.length === 0) day.append(el("div", "dim", "—"));
+    if (items.length === 0) day.append(el("div", "dim", "Aucun cours"));
     for (const o of items) {
       const key = `${o.date}|${o.start}|${o.label}`;
       const row = el("div", `week-item${o.kind === "examen" ? " exam" : ""}`);
       row.style.borderLeftColor = colorOf(o.courseCode);
-      const d = describe(o);
-      row.append(el("span", "when", `${o.start}–${o.end}`));
-      const label = el("span");
-      label.textContent = o.kind === "examen" ? o.label.replace(/^([A-Z]+) /, "$1") : `${d.sigle}${d.section ? `-${d.section}` : ""} · ${d.component}`;
-      row.append(label);
+      row.append(el("span", "when", `${o.start}–${o.end}`), el("span", "", shortLabel(o)), el("span", "where", parseLocation(o.location).salle || formatLocation(o.location)));
       row.addEventListener("click", () => toggleExpanded(key, view));
       day.append(row);
       if (ui.expanded === key) day.append(detailsPanel(o, view));
@@ -239,24 +314,27 @@ function detailsPanel(o: Occurrence, view: View): HTMLElement {
       for (const m of course.meetings) {
         box.append(el("div", "sub", `${weekdayName(m.weekday, "short")} ${m.start}–${m.end} · ${formatLocation(m.location)}`));
       }
-      const ranges = [...new Set(course.meetings.map((m) => `${shortDate(m.dateStart)} → ${shortDate(m.dateEnd)}`))];
+      const ranges = [...new Set(course.meetings.map((m) => `${dayMonthShort(m.dateStart)} → ${dayMonthShort(m.dateEnd)}`))];
       box.append(el("div", "dim", ranges.join("  ·  ")));
-      for (const n of course.notes ?? []) box.append(el("div", "dim", `Note : ${n}`));
+      for (const n of course.notes ?? []) box.append(withIcon("info", n, "inline dim"));
     }
   } else {
     box.append(el("div", "sub", `${o.start}–${o.end} · ${formatLocation(o.location)}`));
   }
   const row = el("div", "row");
-  const copyBtn = el("button", "secondary", "⧉ Copier le local") as HTMLButtonElement;
+  const copyBtn = el("button", "secondary") as HTMLButtonElement;
+  copyBtn.append(icon("copy"), document.createTextNode("Copier le local"));
   copyBtn.addEventListener("click", async (ev) => {
     ev.stopPropagation();
     await navigator.clipboard.writeText(fullLocation(o.location));
-    copyBtn.textContent = "Copié !";
-    setTimeout(() => (copyBtn.textContent = "⧉ Copier le local"), 2000);
+    copyBtn.replaceChildren(icon("copy"), document.createTextNode("Copié !"));
+    setTimeout(() => copyBtn.replaceChildren(icon("copy"), document.createTextNode("Copier le local")), 2000);
   });
   row.append(copyBtn);
-  if (parseLocation(o.location).pavillonId && parseLocation(o.location).pavillonId !== "en-ligne") {
-    const map = el("button", "secondary", "🗺 Carte du campus");
+  const loc = parseLocation(o.location);
+  if (loc.pavillonId && loc.pavillonId !== "en-ligne") {
+    const map = el("button", "secondary");
+    map.append(icon("map"), document.createTextNode("Carte du campus"));
     map.addEventListener("click", (ev) => {
       ev.stopPropagation();
       void chrome.tabs.create({ url: CAMPUS_MAP_URL });
@@ -264,7 +342,8 @@ function detailsPanel(o: Occurrence, view: View): HTMLElement {
     row.append(map);
   }
   if (o.kind === "examen") {
-    const g = el("button", "secondary", "＋ Google Agenda");
+    const g = el("button", "secondary");
+    g.append(icon("calendarPlus"), document.createTextNode("Google Agenda"));
     g.addEventListener("click", (ev) => {
       ev.stopPropagation();
       void chrome.tabs.create({ url: googleCalendarUrl({ title: o.label, date: o.date, start: o.start, end: o.end, location: fullLocation(o.location) }) });
@@ -286,7 +365,7 @@ function toggleExpanded(key: string, view: View): void {
 // ---------------------------------------------------------------------------
 // Onglet EXAMENS
 
-function renderExams(view: View, now: ReturnType<typeof localNow>): void {
+function renderExams(view: View, now: Now): void {
   const panel = $("panel-exams");
   panel.replaceChildren();
   const exams = view.schedule.exams;
@@ -294,24 +373,20 @@ function renderExams(view: View, now: ReturnType<typeof localNow>): void {
     panel.append(el("p", "empty", "Aucun examen dans l'horaire capturé."));
     return;
   }
-  const head = el("div", "exams-head");
-  head.append(el("h2", "", "Examens"));
   const past = exams.filter((e) => e.date < now.date).length;
   if (past > 0) {
-    const toggle = el("button", "linkish", ui.hidePastExams ? `Afficher les ${past} passés` : "Masquer les examens passés");
+    const toggle = el("button", "linkish", ui.hidePastExams ? `Afficher les ${past} examens passés` : "Masquer les examens passés");
     toggle.addEventListener("click", () => {
       ui.hidePastExams = !ui.hidePastExams;
       void saveUi();
       renderExams(view, now);
     });
-    head.append(toggle);
+    panel.append(toggle);
   }
-  panel.append(head);
 
-  const clusters = examClusters(exams);
-  for (const c of clusters) {
+  for (const c of examClusters(exams)) {
     if (daysUntil(c.end, now.date) < 0) continue;
-    panel.append(el("p", "warn", `⚠ ${c.exams.length} examens en ${daysUntil(c.end, c.start) + 1} jours (${shortDate(c.start)} → ${shortDate(c.end)})`));
+    panel.append(withIcon("warning", `${c.exams.length} examens en ${daysUntil(c.end, c.start) + 1} jours (${shortDate(c.start)} → ${shortDate(c.end)})`, "warn"));
   }
 
   const groups: [string, Exam[]][] = [
@@ -330,7 +405,8 @@ function renderExams(view: View, now: ReturnType<typeof localNow>): void {
       const row = el("div", `exam-row${left < 0 ? " past" : left <= 7 ? " soon" : ""}`);
       const name = el("span", "");
       name.append(swatch(e.courseCode), document.createTextNode(sigle(e.courseCode)));
-      row.append(name, el("span", "when", shortDate(e.date)), el("span", "left", left < 0 ? "" : formatDaysUntil(left)));
+      const leftText = left >= 0 && left <= DAYS_LEFT_HORIZON ? formatDaysUntil(left) : "";
+      row.append(name, el("span", "when", shortDate(e.date)), el("span", "left", leftText));
       row.addEventListener("click", () => toggleExpanded(key, view));
       sec.append(row);
       if (ui.expanded === key) {
@@ -405,6 +481,12 @@ function wireMenu(): void {
   });
 }
 
+function mountIcons(): void {
+  for (const holder of document.querySelectorAll<HTMLElement>(".btn-icon[data-icon]")) {
+    holder.replaceChildren(icon(holder.dataset["icon"] as Parameters<typeof icon>[0]));
+  }
+}
+
 function openSynchro(ev: Event): void {
   ev.preventDefault();
   void chrome.tabs.create({ url: SYNCHRO_URL });
@@ -432,9 +514,8 @@ function wireExport(view: View, nowIso: string): void {
   $("copy").onclick = async () => {
     await navigator.clipboard.writeText(ics());
     const btn = $<HTMLButtonElement>("copy");
-    const label = btn.textContent;
-    btn.textContent = "Copié !";
-    setTimeout(() => (btn.textContent = label), 1500);
+    btn.replaceChildren(icon("copy"), document.createTextNode("Copié !"));
+    setTimeout(() => btn.replaceChildren(icon("copy"), document.createTextNode("Copier")), 1500);
   };
 }
 
@@ -488,7 +569,8 @@ function render(state: StoredState): void {
   const occurrences = expandSchedule(schedule, { excludedDates: excluded });
   const view: View = { state, schedule, occurrences, excluded };
   currentView = view;
-  palette = courseColors([...new Set([...schedule.courses.map((c) => c.code), ...schedule.exams.map((e) => e.courseCode)])]);
+  const codes = [...new Set([...schedule.courses.map((c) => c.code), ...schedule.exams.map((e) => e.courseCode)])].sort();
+  palette = new Map(codes.map((code, i) => [code, PALETTE[i % PALETTE.length]!]));
 
   renderToday(view, now);
   renderWeek(view, now);
@@ -509,6 +591,7 @@ async function refresh(): Promise<void> {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  mountIcons();
   await loadUi();
   wireTabs();
   wireMenu();
