@@ -8,6 +8,7 @@
 
 import type { Course, Exam, Meeting, Schedule } from "./model";
 import { dateToUtc, meetingDates } from "./expand";
+import { fullLocation } from "../format/location";
 
 export const TZID = "America/Toronto";
 export const PRODID = "-//synchro-calendrier//UdeM//FR";
@@ -50,8 +51,7 @@ const COMPONENT_NAMES: Record<Course["component"], string> = {
 // libellés d'`expand.ts` (« MAT 1400-A Calcul 1 (TH) ») servent au détecteur de
 // conflits et à l'affichage du popup, où le titre du cours est utile. Dans un
 // agenda, le titre encombre la tuile et le sigle sans espace se cherche mieux.
-// Une autre session écrit un module `format/` avec la même règle de local :
-// à dédoublonner ensuite, pas maintenant (aucune dépendance croisée).
+// Le local, lui, n'est plus formaté ici : il vient de `format/location.ts`.
 
 /** "MAT 1400" → "MAT1400". Le modèle promet déjà la forme compacte ; on la garantit. */
 export function compactCode(code: string): string {
@@ -74,18 +74,12 @@ export function examSummary(exam: Exam): string {
   return `${compactCode(exam.courseCode)} — ${kind}`;
 }
 
-/**
- * « B-0215  Pav. 3200 J.-Brillant » → « B-0215, Pavillon J.-Brillant ».
- * Le numéro civique (3200) est du bruit dans un agenda. « En ligne » et tout
- * texte qui ne suit pas ce motif passent inchangés : mieux vaut recopier ce que
- * Synchro affiche que deviner.
- */
-export function formatLocation(location: string): string {
-  const raw = location.trim();
-  const m = /^(.+?)\s+Pav\.\s+(?:\d+\s+)?(.+)$/.exec(raw);
-  if (!m) return raw;
-  return `${m[1]!.trim()}, Pavillon ${m[2]!.trim()}`;
-}
+// Le local passe par `fullLocation` de `format/location.ts` : « B-0215  Pav.
+// 3200 J.-Brillant » → « B-0215, Pavillon J.-Brillant », le numéro civique
+// étant du bruit dans un agenda. Cette règle vivait ici en double le temps que
+// `format/` arrive ; elle y est désormais seule, ce qui lève au passage la
+// collision de noms avec `format.formatLocation`, qui rend la forme compacte
+// « B-0215 · J.-Brillant » et n'a rien à faire dans un fichier ICS.
 
 // ---------------------------------------------------------------------------
 // Utilitaires texte
@@ -315,7 +309,7 @@ function meetingEvent(
   const summary = courseSummary(course);
   lines.push(
     `SUMMARY:${escapeText(summary)}`,
-    `LOCATION:${escapeText(formatLocation(meeting.location))}`,
+    `LOCATION:${escapeText(fullLocation(meeting.location))}`,
     `DESCRIPTION:${escapeText(courseDescription(course, meeting))}`,
     "CATEGORIES:Cours",
   );
@@ -333,7 +327,7 @@ function examEvent(termCode: string, exam: Exam, dtstamp: string, alarms: AlarmO
     `DTSTART;TZID=${TZID}:${toIcsLocal(exam.date, exam.start)}`,
     `DTEND;TZID=${TZID}:${toIcsLocal(exam.date, exam.end)}`,
     `SUMMARY:${escapeText(summary)}`,
-    `LOCATION:${escapeText(formatLocation(exam.location))}`,
+    `LOCATION:${escapeText(fullLocation(exam.location))}`,
   ];
   if (exam.label) lines.push(`DESCRIPTION:${escapeText(exam.label)}`);
   lines.push("CATEGORIES:Examen");

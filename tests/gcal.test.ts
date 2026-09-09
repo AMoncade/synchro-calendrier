@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { GCAL_BASE, GCAL_TZ, googleCalendarUrl } from "../src/core/gcal";
-import { examSummary, formatLocation } from "../src/core/ics";
+import { examSummary } from "../src/core/ics";
+import { fullLocation } from "../src/format/location";
 import { parsePastedText } from "../src/core/parse";
 
 const fixture = (name: string): string => readFileSync(resolve(__dirname, "fixtures", name), "utf8");
@@ -114,7 +115,7 @@ describe("googleCalendarUrl — sur un examen réel de la fixture", () => {
       date: exam.date,
       start: exam.start,
       end: exam.end,
-      location: formatLocation(exam.location),
+      location: fullLocation(exam.location),
     });
     expect(url).toBe(
       "https://calendar.google.com/calendar/render?action=TEMPLATE" +
