@@ -37,7 +37,7 @@
   Chrome** : c'est la prochaine vérification (chrome://extensions → charger `dist/`).
 - Branche `store` mergée (d65badc) : icônes réelles, README, fiche Web Store (`docs/STORE.md`).
   Script `npm run icons` ajouté. Dépendance : `@resvg/resvg-js` ^2.6.2 (devDependency,
-  2026-09-09) — rasterise `public/icons/icon.svg` en PNG 16/48/128 via
+  2026-09-09) — rasterise `assets/icon.svg` en PNG 16/48/128 via
   `scripts/make-icons.mjs`. Moteur SVG en Rust livré en binaires préconstruits : aucun
   navigateur headless, ni node-gyp, ni ImageMagick ; génération reproductible avec `npm ci`.
   Outil de build uniquement, jamais importé par l'extension. ~4,4 Mo dans node_modules.

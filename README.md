@@ -105,7 +105,7 @@ d'un agenda dédié.
 npm ci                      # installer les dépendances (Node 24)
 npx vitest run              # tests unitaires
 npm run build               # tsc --noEmit + build Vite → dist/
-node scripts/make-icons.mjs # régénérer les PNG depuis public/icons/icon.svg
+npm run icons               # régénérer les PNG depuis assets/icon.svg
 ```
 
 `src/core/` est pur et déterministe : aucune API navigateur, aucun `Date.now()` caché.

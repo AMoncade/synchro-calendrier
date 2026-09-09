@@ -16,7 +16,7 @@ import { excludedDates } from "../src/core/calendar-udem";
 import { findConflicts } from "../src/core/conflicts";
 import { expandSchedule } from "../src/core/expand";
 import { generateIcs } from "../src/core/ics";
-import { parseCapture, parsePastedText, textToCapture } from "../src/core/parse";
+import { parseCapture, parsePasted, parsePastedText, textToCapture } from "../src/core/parse";
 import { emptyState, mergeCapture } from "../src/core/store";
 import { extractCapture } from "../src/content/extract";
 import type { Occurrence, Schedule } from "../src/core/model";
