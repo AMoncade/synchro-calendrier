@@ -17,4 +17,15 @@
   A26-H27, consultés le 2026-09-09. Les dates FAS (fin des cours, examens, 5 octobre)
   sont une lecture de grille visuelle du PDF : **à faire confirmer par un humain avant
   la 1.0**.
-- Reste : capture des fixtures Horaire/Examens (connexion Synchro requise), parser.
+- Fixtures capturées dans Chrome sur la session de l'utilisateur (047bba8) : Centre étudiant
+  et « Votre horaire cours » (vue Liste). Découverte clé : **les examens (volets EXI/EXF)
+  sont dans le même tableau que les séances**, pas de page Examens séparée ; les plages de
+  dates sont déjà coupées autour de la relâche. Structure décrite dans ARCHITECTURE §5.
+  Transfert via l'outil JavaScript de Chrome par tranches de 900 caractères avec
+  substitution de `=`, `$`, `;` (le filtre de l'outil bloquait le HTML brut).
+- Contrat de capture brute `RawCapture` ajouté au modèle (3071aa2) ; briefs 2 envoyés :
+  `extract.ts` (session calendar-udem, branche `extract`), `background/index.ts` +
+  `core/store.ts` + `lib/messages.ts` (session conflicts, branche `background`).
+- Parser `core/parse.ts` + repli texte (d2a7418) : 66 tests verts sur main, build OK.
+- Session `ics-generator` silencieuse depuis 16:23 (4 fichiers non commités, 1 test rouge) :
+  reprise par l'intégratrice, voir commit suivant.
