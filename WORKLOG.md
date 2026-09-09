@@ -28,4 +28,13 @@
   `core/store.ts` + `lib/messages.ts` (session conflicts, branche `background`).
 - Parser `core/parse.ts` + repli texte (d2a7418) : 66 tests verts sur main, build OK.
 - Session `ics-generator` silencieuse depuis 16:23 (4 fichiers non commités, 1 test rouge) :
-  reprise par l'intégratrice, voir commit suivant.
+  reprise par l'intégratrice (d7d3840). Le test rouge était une erreur du test (filtre qui
+  attrapait l'examen), le code d'expansion et d'ICS est intact. 103 tests.
+- Briefs 2 (extract, background) retirés à 17:35 : les deux sessions n'avaient rien commencé.
+  Tout écrit par l'intégratrice : `content/extract.ts`, `content/synchro.ts`,
+  `background/index.ts`, `core/store.ts`, `lib/messages.ts`, popup complet. **120 tests
+  verts, build OK** — l'extension est assemblée de bout en bout mais **pas encore chargée dans
+  Chrome** : c'est la prochaine vérification (chrome://extensions → charger `dist/`).
+- Décision : la colonne « URL » (icône SGA) est ignorée par l'extraction et le repli texte.
+- Décision : le content script fait extraction **et** parsing, le service worker ne reçoit
+  qu'un `Schedule` (docs/ARCHITECTURE.md §3 mis à jour).

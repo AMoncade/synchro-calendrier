@@ -27,28 +27,31 @@ Décisions :
 ## 3. Flux
 
 ```
-Content script (all_frames, host Synchro)
-  └─ content/extract.ts : DOM → RawBlock[] (texte uniquement)
-        └─ message "SCHEDULE_CAPTURED" → service worker
+Content script (all_frames, host Synchro) — content/synchro.ts
+  └─ content/extract.ts : DOM → RawCapture (texte uniquement, tableaux repérés par en-têtes)
+  └─ core/parse.ts : RawCapture → Schedule (jours, heures :29→:30, dates, EXI/EXF → examens)
+        └─ message "SCHEDULE_CAPTURED" { schedule, source } → service worker
 Service worker (background/index.ts)
-  └─ core/parse.ts (texte → Schedule) → chrome.storage.local
-  └─ badge = jours avant le prochain examen (core/countdown.ts), chrome.alarms 1×/jour
+  └─ core/store.ts : fusion (liste remplace, centre ne remplace pas liste) → chrome.storage.local
+  └─ badge = jours avant le prochain examen (core/countdown.ts), chrome.alarms 1×/h
 Popup (popup/)
-  └─ cours, examens, conflits (core/conflicts.ts), « Exporter .ics » (core/ics.ts),
-     repli « Coller mon horaire » (même parse.ts)
+  └─ GET_STATE → core/store.currentTerm ; cours, examens, conflits (core/expand + conflicts),
+     « Exporter .ics » (core/ics.ts + calendar-udem.excludedDates), « Copier »,
+     repli « Coller mon horaire » (core/parse.parsePastedText → SCHEDULE_CAPTURED)
 ```
+
+Décision (2026-09-09) : le parsing se fait dans le **content script**, pas dans le service
+worker, pour que celui-ci ne reçoive qu'un `Schedule` déjà valide et reste trivial.
 
 `src/core/` ne dépend d'aucune API navigateur. Les exclusions de dates viennent de
 `core/calendar-udem.ts` et sont passées **en paramètre** à `expand.ts` / `ics.ts`.
 
-## 4. Propriétaires des fichiers (Phase 0–1, sessions parallèles)
+## 4. Propriétaires des fichiers
 
-| Fichiers | Propriétaire |
-|---|---|
-| `core/calendar-udem.ts` + test | session `calendar-udem` |
-| `core/expand.ts`, `core/ics.ts` + tests | session `ics-generator` |
-| `core/conflicts.ts`, `core/countdown.ts` + tests | session `conflicts` |
-| tout le reste (model, parse, content, background, popup, docs, fixtures) | intégratrice |
+Historique (2026-09-09, sessions parallèles) : `calendar-udem.ts` par la session
+`calendar-udem`, `conflicts.ts`/`countdown.ts` par la session `conflicts`, `expand.ts`/`ics.ts`
+écrits par la session `ics-generator` puis repris par l'intégratrice ; tout le reste par
+l'intégratrice. Depuis l'assemblage, **une seule session à la fois** sur `main`.
 
 ## 5. Ce qui a été observé sur Synchro
 
