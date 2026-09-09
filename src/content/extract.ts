@@ -115,13 +115,15 @@ function extractListe(doc: Document): RawCapture {
   const notesByTitle = new Map<string, string[]>();
 
   for (const table of Array.from(doc.querySelectorAll("table"))) {
-    const first = table.rows[0]?.cells[0];
-    if (!first || table.rows.length < 2 || normalize(first.textContent ?? "") !== "Remarques cours") continue;
-    if (first.closest("table") !== table) continue;
+    // La ligne-titre « Remarques cours » n'est pas toujours la première : observé sur
+    // la vraie page (2026-09-09), le premier tableau de remarques a une rangée vide avant.
+    const ownRows = Array.from(table.rows).filter((row) => row.closest("table") === table);
+    const captionIndex = ownRows.findIndex((row) => normalize(row.cells[0]?.textContent ?? "") === "Remarques cours");
+    if (captionIndex < 0) continue;
     const title = precedingHeading(doc, table);
     const notes = notesByTitle.get(title) ?? [];
-    for (const row of Array.from(table.rows).slice(1)) {
-      if (row.closest("table") !== table || row.cells.length < 4) continue;
+    for (const row of ownRows.slice(captionIndex + 1)) {
+      if (row.cells.length < 4) continue;
       const text = cellText(row.cells[row.cells.length - 1] as Element);
       if (text) notes.push(text);
     }
