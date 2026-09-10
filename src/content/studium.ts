@@ -346,18 +346,19 @@ export async function runSync(env: SyncEnv, options: { force: boolean }): Promis
 
   const startedAt = env.now();
   if (!options.force && isThrottled(await env.readLastRun(), startedAt.getTime())) return;
-  // Marqué avant les appels : un échec ne doit pas non plus repartir à chaque
-  // page StudiUM ouverte. Le popup garde la main avec STUDIUM_SYNC_NOW.
-  await env.writeLastRun(startedAt.getTime());
 
   let outcome = await captureStudium(env.fetch, sesskey, startedAt);
   if (!outcome.ok && isNetworkError(outcome.error)) {
     await new Promise((resolve) => setTimeout(resolve, env.retryDelayMs ?? RETRY_DELAY_MS));
     outcome = await captureStudium(env.fetch, sesskey, startedAt);
   }
+  // Le tampon anti-rafale s'écrit À LA FIN du run, succès comme échec complet — jamais
+  // avant les appels. Un run interrompu (la page navigue pendant le fetch : le contexte
+  // du content script est détruit, aucun catch ne tourne) n'écrit donc rien, et la page
+  // suivante réessaie tout de suite. Écrit avant, il masquait exactement ce cas pendant
+  // 30 min sans aucun message (2026-09-10, première synchro réelle ; analyse adrie-07).
+  await env.writeLastRun(startedAt.getTime());
   if (!outcome.ok) {
-    // Un échec réseau ne doit pas bloquer 30 min : la page suivante réessaie.
-    if (isNetworkError(outcome.error)) await env.writeLastRun(0);
     env.send(failedMessage(outcome.error, localNow(env.now())));
     return;
   }
