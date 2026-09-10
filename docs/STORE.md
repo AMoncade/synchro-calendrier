@@ -37,7 +37,8 @@ CE QU'ELLE FAIT
 • Conflits d'horaire — deux séances qui se chevauchent ou un cours pendant un examen : signalé.
 • Badge — l'icône de la barre d'outils affiche le nombre de cours qu'il vous reste aujourd'hui.
 • Échéances StudiUM — ouvrez StudiUM une fois : vos quiz et devoirs (fenêtre d'ouverture et date limite) apparaissent dans Aujourd'hui et Semaine, avec un lien direct vers l'activité. Sans jeton ni mot de passe : l'extension lit le calendrier de StudiUM avec la session que vous avez déjà ouverte.
-• Événements à la main — un rendez-vous, une remise, une séance de révision : ajoutez-les depuis le popup, ils s'affichent avec le reste.
+• Événements à la main — un rendez-vous, une remise, une séance de révision : ajoutez-les depuis le popup, ils s'affichent avec le reste. Cochez un quiz ou une remise une fois faits.
+• Notes (option) — activez « Notes » dans le menu pour voir vos notes StudiUM et la moyenne du groupe, cours par cours, sans quitter le popup. Désactivée par défaut ; rien n'est transmis.
 • Repli manuel — si l'extraction automatique échoue, collez le texte de la page : le résultat est le même.
 
 COMMENT L'UTILISER
@@ -52,7 +53,7 @@ VIE PRIVÉE
 
 Aucune donnée n'est transmise. L'extension lit la page Synchro que vous avez ouverte vous-même, garde le résultat dans le stockage local de Chrome, et ne communique avec aucun serveur. Pas de compte à créer, pas de clé, pas de statistiques d'usage. Vous effacez tout depuis le popup ou en désinstallant l'extension.
 
-Elle ne lit ni votre mot de passe, ni vos notes, ni aucune page autre que votre horaire, vos examens et le calendrier de StudiUM.
+Elle ne lit ni votre mot de passe ni aucune page autre que votre horaire, vos examens et le calendrier de StudiUM. Vos notes ne sont lues que si vous activez l'option « Notes », et restent sur votre ordinateur.
 
 LIMITES CONNUES
 

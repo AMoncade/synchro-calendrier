@@ -13,6 +13,13 @@ demi-heure. Elle n'enregistre aucun jeton, aucun mot de passe, et ne lit ni vos 
 vos forums, ni le contenu des cours. Vous pouvez retirer une échéance depuis le popup ; elle
 ne reviendra pas à la synchronisation suivante.
 
+**Notes (option, désactivée par défaut).** Si vous activez « Notes » dans le menu du popup,
+l'extension lit aussi, lors de la même synchronisation, le rapport de notes de chacun de vos
+sites StudiUM (éléments d'évaluation, notes, valeurs possibles, pourcentages, moyennes du
+groupe) et le garde dans le stockage local, sur votre ordinateur. Rien n'est recalculé ni
+transmis. Désactiver l'option efface les notes conservées ; « Effacer les données » aussi.
+Sans cette option, l'extension ne lit jamais vos notes.
+
 **Événements ajoutés à la main.** Ce que vous saisissez dans le popup reste dans le stockage
 local, comme le reste.
 

@@ -215,3 +215,30 @@ Un étudiant en voyage verra des statuts décalés de l'écart de fuseau ; hors 
 
 Permission ajoutée : `host_permissions` + `content_scripts` sur `https://studium.umontreal.ca/*`
 (déclaration Web Store et `docs/PRIVACY.md` à aligner).
+
+## 8. Échéances cochables et carnet de notes (phase 13, 2026-09-10)
+
+Demande de l'utilisateur après la première synchro réelle. Trois sessions en worktrees
+(`deadlines-done` f6, `grades-parse` 29, `grades-sync` 07), intégratrice adrie-aa.
+
+- **Cocher une échéance** : `StoredState.doneDeadlines: string[]` (ids), message
+  `DEADLINE_DONE_SET { id, done }`. Une synchro StudiUM ne décoche rien ; `pruneDone`
+  retire les ids dont l'échéance n'existe plus. `deadlineStatus` gagne l'état `done`, qui
+  prime sur tout ; les listes ne filtrent pas, le popup barre.
+- **Carnet de notes — opt-in, désactivé par défaut.** Ce sont des données sensibles : la
+  déclaration Web Store et `docs/PRIVACY.md` le disent explicitement, et l'utilisateur
+  active « Notes » dans le menu du popup (clé `synchro-calendrier.studium-grades-optin`,
+  lue par `content/studium.ts`). Sans opt-in, aucune requête vers `/grade/`.
+- **Source** : `/grade/report/user/index.php?id=<courseid>` pour chaque site, HTML parsé par
+  `core/grades.ts` (tableau repéré par ses en-têtes texte : Élément d'évaluation,
+  Pondération calculée, Note, Valeurs possibles, Pourcentage, Moyenne, Rétroaction). Les
+  valeurs sont gardées telles qu'affichées (`« 2,0 »`, `« 0–2 »`, `« 1,8 (285) »` = moyenne
+  du groupe et nombre de répondants), jamais recalculées. Observé en direct le 2026-09-10 sur
+  MAT1600-AB-A26 (arbre d'accessibilité ; HTML brut non capturé).
+- **Jamais stocké** : l'URL « Analyse de l'évaluation » (porte `userid=`), toute URL avec
+  `sesskey=`/`authtoken=`, le nom de l'étudiant. Les rapports sont remplacés en bloc à chaque
+  lecture (`StoredState.grades`), effacés par « Effacer les données » et par la désactivation
+  de l'opt-in.
+- **Affichage** : panneau « Notes » depuis le menu (pas un quatrième onglet : c'est une
+  consultation, pas une vue quotidienne), un bloc par cours (sigle Synchro si lié), lignes
+  nom / note / sur / moyenne du groupe, total du cours en pied, date de lecture.
