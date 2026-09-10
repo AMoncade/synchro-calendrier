@@ -207,5 +207,11 @@ Popup
      Aujourd'hui et Semaine, onglet Examens inchangé ; formulaire manuel ; écran de liaison.
 ```
 
+Hypothèse de fuseau (tranchée le 2026-09-10, second passage d'adrie-f6) : `core/studium.ts` ancre
+`due`/`start` à America/Toronto, le popup compare à l'heure de la machine (`localNow`). C'est
+cohérent avec tout le reste de l'extension (l'horaire Synchro est en heure locale comparée à
+l'heure machine) : **l'extension suppose que le navigateur est réglé sur America/Toronto**.
+Un étudiant en voyage verra des statuts décalés de l'écart de fuseau ; hors périmètre.
+
 Permission ajoutée : `host_permissions` + `content_scripts` sur `https://studium.umontreal.ca/*`
 (déclaration Web Store et `docs/PRIVACY.md` à aligner).
