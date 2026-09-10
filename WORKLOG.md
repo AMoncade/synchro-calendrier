@@ -17,6 +17,11 @@
   icon32 (48, branche `today`), `core/ics.ts` VALARM/SUMMARY v2 + `core/gcal.ts` (f4,
   branche `ics-v2`). Intégratrice : popup à onglets (écrit, en attente des modules), badge =
   cours restants aujourd'hui, manifest, README/captures.
+- **Passe de couture d'a6 sur le popup v2** (`popup-sweep`, 11 tests) : « journée chargée » calculée
+  sur la présence effective (blocs fusionnés) et non l'amplitude — 11 journées sur 68 au lieu de
+  23 ; rendu complet à minuit et « Mis à jour » rafraîchi ; clés de dépliage séparées Semaine /
+  Examens ; repli du panneau de détail sur le sigle seul ; congé nommé aussi dans Aujourd'hui ;
+  helpers de dates repris de `format/` et `expand.ts`. 252 tests.
 - **Retouches d'après captures** (d53eccd) puis **rapport UI externe** D1–D6 (6c62926,
   rapport sous `docs/reviews/`). Dédoublonnage des séances dans le panneau de détail.
 - **Publication préparée** (6028a6a) : `npm run package` → `synchro-calendrier-0.2.0.zip` ;

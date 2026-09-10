@@ -169,9 +169,10 @@ describe("busyDay", () => {
     expect(busyDay(day("2026-09-10"))).toBe(false);
   });
 
-  it("déclare chargé le mercredi de deux blocs étalés sur sept heures", () => {
-    // 08:30 → 15:30 : deux blocs seulement, mais plus de six heures de présence.
-    expect(busyDay(day("2026-09-09"))).toBe(true);
+  it("ne déclare pas chargé le mercredi de deux blocs étalés sur sept heures", () => {
+    // 08:30–10:30 et 13:30–15:30 : quatre heures de présence, un trou de trois heures.
+    // La spec parle de présence, pas d'amplitude (défaut corrigé le 2026-09-09).
+    expect(busyDay(day("2026-09-09"))).toBe(false);
   });
 
   it("laisse tranquille une journée d'un seul cours, et une journée vide", () => {
@@ -179,7 +180,7 @@ describe("busyDay", () => {
     expect(busyDay([])).toBe(false);
   });
 
-  it("compte l'amplitude, pas la somme des heures", () => {
+  it("compte la présence effective, blocs fusionnés", () => {
     const bloc = (start: string, end: string, i: number): Occurrence => ({
       kind: "cours",
       courseCode: `XXX${1000 + i}`,
@@ -192,6 +193,8 @@ describe("busyDay", () => {
     expect(busyDay([bloc("08:00", "14:00", 1)])).toBe(false); // six heures pile
     expect(busyDay([bloc("08:00", "14:01", 1)])).toBe(true); // au-delà de six heures
     expect(busyDay([bloc("08:00", "09:00", 1), bloc("13:00", "14:00", 2)])).toBe(false);
+    // Deux blocs qui se chevauchent ne comptent pas double : 08:00–14:00 ∪ 09:00–13:00 = 6 h pile.
+    expect(busyDay([bloc("08:00", "14:00", 1), bloc("09:00", "13:00", 2)])).toBe(false);
   });
 
   it("évalue chaque journée séparément si la liste en couvre plusieurs", () => {

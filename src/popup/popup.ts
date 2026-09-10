@@ -7,7 +7,7 @@
 import { excludedDates, getTermCalendar } from "../core/calendar-udem";
 import { classesRemainingToday, examClusters, minutesOfTime } from "../core/alerts";
 import { findConflicts } from "../core/conflicts";
-import { expandSchedule } from "../core/expand";
+import { addDays, expandSchedule } from "../core/expand";
 import { googleCalendarUrl } from "../core/gcal";
 import { generateIcs } from "../core/ics";
 import type { Exam, Occurrence, Schedule } from "../core/model";
@@ -23,6 +23,7 @@ import {
   formatMinutes,
   fullDateTime,
   fullLocation,
+  isoWeekday,
   longDate,
   parseLocation,
   relativeTime,
@@ -55,7 +56,10 @@ type Tab = "today" | "week" | "exams";
 interface UiState {
   tab: Tab;
   openedAt: number;
+  /** Ligne dépliée dans Semaine. */
   expanded: string | null;
+  /** Ligne dépliée dans Examens (slot séparé : déplier ici ne referme pas là-bas). */
+  expandedExam: string | null;
   hidePastExams: boolean;
   courseAlarms: boolean;
 }
@@ -85,20 +89,14 @@ async function send<T = unknown>(message: Message): Promise<T> {
   return (await chrome.runtime.sendMessage(message)) as T;
 }
 
-function addDays(date: string, n: number): string {
-  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  return new Date(Date.UTC(y, m - 1, d) + n * 86_400_000).toISOString().slice(0, 10);
-}
 function mondayOf(date: string): string {
-  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7;
-  return addDays(date, -(dow - 1));
+  return addDays(date, -(isoWeekday(date) - 1));
 }
 
 // ---------------------------------------------------------------------------
 // État d'interface persistant (onglet, section dépliée, préférences)
 
-let ui: UiState = { tab: "today", openedAt: 0, expanded: null, hidePastExams: false, courseAlarms: false };
+let ui: UiState = { tab: "today", openedAt: 0, expanded: null, expandedExam: null, hidePastExams: false, courseAlarms: false };
 /** Décalage de semaine dans l'onglet Semaine (0 = semaine courante), non persisté. */
 let weekOffset = 0;
 
@@ -186,9 +184,12 @@ function renderToday(view: View, now: Now): void {
   if (today.kind === "term-over") {
     panel.append(el("p", "empty", "Le trimestre est terminé. Ouvrez Synchro pour capturer le suivant."));
   } else if (today.kind === "nothing" && today.items.length === 0) {
-    panel.append(el("p", "empty", "Rien aujourd'hui."));
+    panel.append(el("p", "empty", dayOffLabel(view, now.date) ?? "Rien aujourd'hui."));
   } else {
-    if (today.kind === "nothing") panel.append(el("p", "dim", "Rien aujourd'hui. Prochain jour de cours :"));
+    if (today.kind === "nothing") {
+      const why = dayOffLabel(view, now.date);
+      panel.append(el("p", "dim", `${why ?? "Rien aujourd'hui"}. Prochain jour de cours :`));
+    }
     const list = el("div");
     const dayDiff = daysUntil(today.date, now.date);
     for (const item of today.items) list.append(todayItem(item, isToday, dayDiff, now));
@@ -226,11 +227,6 @@ function renderToday(view: View, now: Now): void {
     }
     panel.append(box);
   }
-}
-
-function isoWeekday(date: string): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
-  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  return ((new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7) as 1);
 }
 
 function todayItem(item: TodayItem, isToday: boolean, dayDiff: number, now: Now): HTMLElement {
@@ -333,7 +329,11 @@ function detailsPanel(o: Occurrence, view: View): HTMLElement {
   const box = el("div", "details");
   const d = describe(o);
   if (o.kind === "cours") {
-    const course = view.schedule.courses.find((c) => c.code === o.courseCode && (d.section === "" || c.section === d.section) && componentName(c.component) === d.component);
+    // Si le libellé n'a pas pu être découpé, on retombe sur le sigle seul plutôt que de
+    // rendre un panneau vide (titre, séances et plages valent mieux qu'une devinette ratée).
+    const course =
+      view.schedule.courses.find((c) => c.code === o.courseCode && (d.section === "" || c.section === d.section) && (d.component === "" || componentName(c.component) === d.component)) ??
+      view.schedule.courses.find((c) => c.code === o.courseCode);
     if (course) {
       box.append(el("div", "sub", course.title));
       // Une même séance hebdomadaire apparaît une fois par plage de dates : on la
@@ -386,11 +386,16 @@ function detailsPanel(o: Occurrence, view: View): HTMLElement {
 }
 
 function toggleExpanded(key: string, view: View): void {
-  ui.expanded = ui.expanded === key ? null : key;
-  void saveUi();
   const now = localNow();
-  renderWeek(view, now);
-  renderExams(view, now);
+  if (key.startsWith("exam|")) {
+    ui.expandedExam = ui.expandedExam === key ? null : key;
+    void saveUi();
+    renderExams(view, now);
+  } else {
+    ui.expanded = ui.expanded === key ? null : key;
+    void saveUi();
+    renderWeek(view, now);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -434,7 +439,7 @@ function renderExams(view: View, now: Now): void {
     for (const e of visible) {
       const left = daysUntil(e.date, now.date);
       const key = `exam|${e.courseCode}|${e.date}`;
-      const open = ui.expanded === key;
+      const open = ui.expandedExam === key;
       const row = el("div", `exam-row${left < 0 ? " past" : left <= 7 ? " soon" : ""}${open ? " open" : ""}`);
       const name = el("span", "");
       name.append(swatch(e.courseCode), document.createTextNode(sigle(e.courseCode)));
@@ -444,7 +449,7 @@ function renderExams(view: View, now: Now): void {
       row.append(name, el("span", "when", shortDate(e.date)), el("span", "left", leftText), chevron);
       row.addEventListener("click", () => toggleExpanded(key, view));
       sec.append(row);
-      if (ui.expanded === key) {
+      if (open) {
         const occ: Occurrence = { kind: "examen", courseCode: e.courseCode, label: `${sigle(e.courseCode)} — ${e.label}`, date: e.date, start: e.start, end: e.end, location: e.location };
         sec.append(detailsPanel(occ, view));
       }
@@ -469,6 +474,8 @@ function selectTab(tab: Tab, focus = false): void {
   $("panel-week").hidden = tab !== "week";
   $("panel-exams").hidden = tab !== "exams";
   $("paste-panel").hidden = true;
+  // Revenir sur Aujourd'hui après un moment ailleurs : recalculer « dans X min ».
+  if (tab === "today" && currentView) renderToday(currentView, localNow());
 }
 
 function wireTabs(): void {
@@ -574,9 +581,12 @@ async function importPasted(textareaId: string, errorId: string): Promise<void> 
 // Rendu principal
 
 let currentView: View | null = null;
+/** Date civile du dernier rendu complet : sert à détecter le passage à minuit. */
+let renderedDate = "";
 
 function render(state: StoredState): void {
   const now = localNow();
+  renderedDate = now.date;
   const schedule = currentTerm(state, now.date);
   const captured = $("captured");
   if (state.lastCapturedAt) {
@@ -636,6 +646,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("paste-btn-2").addEventListener("click", () => void importPasted("paste-2", "paste-error-2"));
   await refresh();
   setInterval(() => {
-    if (currentView && ui.tab === "today") renderToday(currentView, localNow());
+    const now = localNow();
+    // Minuit : tout re-rendre, sinon Semaine et Examens gardent la date d'ouverture.
+    if (renderedDate && now.date !== renderedDate) {
+      void refresh();
+      return;
+    }
+    if (!currentView) return;
+    if (ui.tab === "today") renderToday(currentView, now);
+    if (currentView.state.lastCapturedAt) $("captured").textContent = `Mis à jour ${relativeTime(currentView.state.lastCapturedAt, now.iso)}`;
   }, REFRESH_MS);
 });

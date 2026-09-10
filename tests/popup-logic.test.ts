@@ -81,39 +81,29 @@ describe("journée chargée — amplitude vs présence", () => {
     expect(presenceMinutes(day("2026-09-14"))).toBe(480);
   });
 
-  // DÉFAUT CONNU — `busyDay` (src/core/alerts.ts) compare l'AMPLITUDE
-  // (premier début → dernière fin) au seuil de 6 h, alors que la spec v2 §8.3
-  // dit « plus de 6 h de présence ». Mercredi et jeudi ont exactement la même
-  // présence — 4 h de cours — et reçoivent des verdicts opposés, uniquement
-  // parce que le mercredi a un trou de 3 h au milieu.
-  // Après correction, attendre : busyDay(mercredi) === false.
-  it("DÉFAUT CONNU : même présence, verdicts opposés (mercredi vs jeudi)", () => {
+  // Défaut corrigé le 2026-09-09 : `busyDay` comparait l'AMPLITUDE (premier début →
+  // dernière fin) au seuil de 6 h ; la spec v2 §8.3 dit « plus de 6 h de présence ».
+  // Mercredi et jeudi ont la même présence (4 h) et reçoivent le même verdict.
+  it("même présence, même verdict (mercredi vs jeudi)", () => {
     expect(presenceMinutes(day("2026-09-09"))).toBe(presenceMinutes(day("2026-09-10")));
-    expect(busyDay(day("2026-09-09"))).toBe(true); // attendu après correction : false
+    expect(busyDay(day("2026-09-09"))).toBe(false);
     expect(busyDay(day("2026-09-10"))).toBe(false);
-    // La règle proposée les met d'accord.
     expect(busyByPresence(day("2026-09-09"))).toBe(false);
     expect(busyByPresence(day("2026-09-10"))).toBe(false);
   });
 
-  // DÉFAUT CONNU — l'ampleur du problème : un tiers des journées du trimestre
-  // portent la mention, dont tous les mercredis. Après correction, attendre 11.
-  it("DÉFAUT CONNU : 23 journées sur 68 sont dites chargées, contre 11 attendues", () => {
+  it("dit chargées 11 journées sur 68, jamais un mercredi à deux blocs", () => {
     const dates = [...DAYS.keys()].sort();
     expect(dates).toHaveLength(68);
     const actuel = dates.filter((d) => busyDay(day(d)));
     const propose = dates.filter((d) => busyByPresence(day(d)));
-    expect(actuel).toHaveLength(23); // attendu après correction : 11
+    expect(actuel).toHaveLength(11);
     expect(propose).toHaveLength(11);
-
-    // Les journées qui changent de verdict sont toutes des mercredis à 2 blocs.
+    // L'implémentation de référence du test et celle d'alerts.ts sont d'accord partout.
     const divergentes = dates.filter((d) => busyDay(day(d)) !== busyByPresence(day(d)));
-    expect(divergentes).toHaveLength(12);
-    for (const d of divergentes) {
-      const [y, m, dd] = d.split("-").map(Number) as [number, number, number];
-      expect(new Date(Date.UTC(y, m - 1, dd)).getUTCDay()).toBe(3); // mercredi
-      expect(day(d)).toHaveLength(2);
-      expect(presenceMinutes(day(d))).toBe(240);
+    expect(divergentes).toHaveLength(0);
+    for (const d of actuel) {
+      expect(day(d).length >= 3 || presenceMinutes(day(d)) > 360).toBe(true);
     }
   });
 

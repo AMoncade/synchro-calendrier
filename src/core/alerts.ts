@@ -16,7 +16,7 @@ const LOCAL_DATETIME = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/;
 
 /** Nombre de blocs à partir duquel une journée est dite chargée (spec §8.3). */
 export const BUSY_MIN_BLOCKS = 3;
-/** Amplitude de présence au-delà de laquelle une journée est dite chargée, en minutes (spec §8.3). */
+/** Présence effective (blocs fusionnés) au-delà de laquelle une journée est dite chargée, en minutes (spec §8.3). */
 export const BUSY_SPAN_MINUTES = 6 * 60;
 /** Largeur de la fenêtre glissante d'une grappe d'examens, en jours civils (spec §8.1). */
 export const CLUSTER_WINDOW_DAYS = 8;
@@ -151,12 +151,37 @@ export function examClusters(
 // ---------------------------------------------------------------------------
 
 /**
- * Journée chargée : plus de 6 h entre le premier début et la dernière fin, ou au moins
- * 3 blocs. Purement informatif (spec §8.3 : « aucun jugement »).
+ * Minutes de présence effective d'une journée : somme des blocs après fusion des
+ * intervalles qui se chevauchent (une journée en conflit ne compte pas double).
+ * Les blocs doivent être du même jour ; la fonction ne vérifie pas la date.
+ */
+export function presenceMinutes(items: Occurrence[]): number {
+  const sorted = dedupeOccurrences(items)
+    .map((o) => ({ start: minutesOfTime(o.start), end: minutesOfTime(o.end) }))
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+  let total = 0;
+  let curStart = -1;
+  let curEnd = -1;
+  for (const b of sorted) {
+    if (b.start > curEnd) {
+      if (curEnd > curStart) total += curEnd - curStart;
+      curStart = b.start;
+      curEnd = b.end;
+    } else if (b.end > curEnd) {
+      curEnd = b.end;
+    }
+  }
+  if (curEnd > curStart) total += curEnd - curStart;
+  return total;
+}
+
+/**
+ * Journée chargée (spec §8.3) : plus de 6 h de **présence** (blocs fusionnés, pas
+ * l'amplitude premier début → dernière fin : un trou de trois heures est du repos), ou
+ * au moins 3 blocs. Purement informatif (« aucun jugement »).
  *
  * L'appel normal porte sur une seule journée. Si la liste en couvre plusieurs, chaque
- * jour est évalué séparément et la réponse vaut « au moins une journée est chargée » :
- * une amplitude calculée à cheval sur deux dates n'aurait aucun sens.
+ * jour est évalué séparément et la réponse vaut « au moins une journée est chargée ».
  */
 export function busyDay(items: Occurrence[]): boolean {
   const byDay = new Map<string, Occurrence[]>();
@@ -165,16 +190,9 @@ export function busyDay(items: Occurrence[]): boolean {
     if (day) day.push(o);
     else byDay.set(o.date, [o]);
   }
-
   for (const day of byDay.values()) {
     if (day.length >= BUSY_MIN_BLOCKS) return true;
-    let first = day[0]!.start;
-    let last = day[0]!.end;
-    for (const o of day) {
-      if (o.start < first) first = o.start;
-      if (o.end > last) last = o.end;
-    }
-    if (minutesOfTime(last) - minutesOfTime(first) > BUSY_SPAN_MINUTES) return true;
+    if (presenceMinutes(day) > BUSY_SPAN_MINUTES) return true;
   }
   return false;
 }
