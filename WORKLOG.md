@@ -17,6 +17,13 @@
   icon32 (48, branche `today`), `core/ics.ts` VALARM/SUMMARY v2 + `core/gcal.ts` (f4,
   branche `ics-v2`). Intégratrice : popup à onglets (écrit, en attente des modules), badge =
   cours restants aujourd'hui, manifest, README/captures.
+- **Retouches d'après captures** (d53eccd) puis **rapport UI externe** D1–D6 (6c62926,
+  rapport sous `docs/reviews/`). Dédoublonnage des séances dans le panneau de détail.
+- **Publication préparée** (6028a6a) : `npm run package` → `synchro-calendrier-0.2.0.zip` ;
+  cinq captures 1280×800 dans `docs/store/` rendues depuis le vrai build (popup servi hors
+  extension avec API chrome remplacées et horloge figée, gabarit dans le scratchpad de la
+  session, mise au format par `npm run store-shots`) ; `docs/STORE.md` aligné sur la v2 ;
+  README avec captures et section « Quand l'UdeM change son affichage ».
 - **v2 livrée** (0519cdb → 03ba4db, version 0.2.0, 245 tests) : modules `format` (a6),
   `today`/`alerts` (48), `ics-v2`/`gcal` (f4) mergés ; popup à onglets écrit par
   l'intégratrice ; icône 32 px ; « 1er » et « hier » (format-2). Le « 1 » vu par

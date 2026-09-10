@@ -10,7 +10,11 @@ l'extension lit la page Synchro que vous avez vous-même ouverte, garde le résu
 stockage local de Chrome, et n'envoie rien nulle part. Voir
 [docs/PRIVACY.md](docs/PRIVACY.md).
 
-![Capture d'écran du popup de l'extension](docs/screenshots/popup.png)
+![Onglet Aujourd'hui](docs/store/1-aujourdhui.png)
+
+![Onglet Semaine](docs/store/2-semaine.png)
+
+![Onglet Examens](docs/store/3-examens.png)
 
 > _Capture à venir — voir la liste des captures à produire dans_
 > [`docs/STORE.md`](docs/STORE.md).
@@ -106,6 +110,8 @@ npm ci                      # installer les dépendances (Node 24)
 npx vitest run              # tests unitaires
 npm run build               # tsc --noEmit + build Vite → dist/
 npm run icons               # régénérer les PNG depuis assets/icon.svg
+npm run package             # build + zip prêt pour le Chrome Web Store
+npm run store-shots         # captures 1280×800 depuis docs/store/raw-N.png
 ```
 
 `src/core/` est pur et déterministe : aucune API navigateur, aucun `Date.now()` caché.
@@ -117,6 +123,25 @@ Les bogues se signalent sur la
 [page des issues](https://github.com/AMoncade/synchro-calendrier/issues), ou depuis le lien
 « Signaler un bug » du popup, qui pré-remplit la version et le trimestre sans joindre
 aucune donnée d'horaire.
+
+## Quand l'UdeM change son affichage
+
+Le seul point de rupture de l'extension est le HTML de Synchro. Si un jour le popup reste
+vide ou affiche « Aucun cours reconnu » alors que la page « Votre horaire cours » est bien
+ouverte en vue Liste :
+
+1. **Dépannez tout de suite** avec le menu ⋯ → « Coller un horaire » : sélectionnez tout le
+   texte de la page (Ctrl+A, Ctrl+C), collez-le, importez. Le texte suit rarement les
+   mêmes changements que le HTML, donc ce repli survit souvent à une refonte.
+2. **Signalez le problème** (menu ⋯ → « Signaler un bug ») : l'issue est préremplie avec la
+   version de l'extension et le trimestre, jamais avec vos données.
+3. **Pour contribuer un correctif** : la structure observée de Synchro est décrite dans
+   `docs/ARCHITECTURE.md` §5 ; l'extraction est dans `src/content/extract.ts` (localisation
+   des tableaux par le texte de leurs en-têtes, jamais par les identifiants PeopleSoft) et
+   le parsing du texte dans `src/core/parse.ts`. Les fixtures réelles anonymisées sont dans
+   `tests/fixtures/` : ajoutez la nouvelle page (anonymisée avec
+   `node scripts/scrub-fixture.mjs <fichier>`), faites passer `npx vitest run`, ouvrez une
+   pull request. Sans fixture, un correctif de parser n'est pas vérifiable.
 
 ## Licence
 

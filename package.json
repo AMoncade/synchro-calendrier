@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "icons": "node scripts/make-icons.mjs",
-    "package": "npm run build && node scripts/package.mjs"
+    "package": "npm run build && node scripts/package.mjs",
+    "store-shots": "node scripts/store-shots.mjs"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.1",
