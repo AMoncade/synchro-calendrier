@@ -92,6 +92,28 @@
   en élévation seule, panneaux sans contour accentué, sélection/défilement/focus thémés.
   Police système gardée à dessein : une police distante contredirait « aucune transmission ».
   Gate à 53286ad : 21 fichiers, 449 tests, build OK, zip 0.3.0 regénéré.
+- **Première synchro réelle réussie** (« StudiUM synchronisé à l'instant », main à 3bbcdb9),
+  après trois obstacles de terrain, dans l'ordre : (a) le routage manquant (ci-dessus) ;
+  (b) « tentative échouée (reseau) » — `fetch` rejeté sur le premier appel, cause non
+  établie (aucun CSP sur la page ; hypothèse : navigation pendant l'appel). Corrigé en
+  profondeur plutôt qu'en surface : l'exception réelle remonte dans le message, une relance
+  après 1,5 s, et surtout le **tampon anti-rafale s'écrit à la fin du run** (adrie-07) — écrit
+  avant, un run interrompu par navigation laissait une zone morte silencieuse de 30 min.
+  Contrepartie assumée : deux onglets StudiUM ouverts simultanément peuvent faire deux
+  synchros (12 requêtes) au lieu d'une ; préférable à la zone morte. `credentials: include`
+  + `text/plain` posés par prudence, inertes en same-origin (Chrome fait partir le fetch d'un
+  content script avec l'origine de la page — vérifié par adrie-07 sur chromium.org après
+  une première analyse inverse). (c) **Content script orphelin** : après un rechargement de
+  l'extension, les scripts déjà injectés ne reçoivent plus rien et l'extension ne se
+  réinjecte pas dans un onglet ouvert ; « Synchroniser StudiUM » recharge maintenant l'onglet
+  quand `tabs.sendMessage` échoue (3bbcdb9). Règle pour l'utilisateur : après un rechargement
+  de l'extension, recharger aussi la page StudiUM.
+- Branche `studium-homonymes` (adrie-29, 23746bc, merge ad27f8c) : un événement sans cmid
+  rejoint le groupe qui attend encore son rôle, le plus proche dans le bon sens du temps ;
+  égalité → orphelin. Défaut trouvé par le second passage d'adrie-f6 (`sweep-2`, 1024f70,
+  merge 604f365) avec le tri déterministe d'`allDeadlines` (`compareStrings`, plus de
+  `localeCompare`). Hypothèse de fuseau consignée dans ARCHITECTURE §7 (navigateur réglé sur
+  America/Toronto). Gate à 3bbcdb9 : 20 fichiers, 459 tests, build OK.
 - Reste à l'utilisateur : recharger `dist/` dans Chrome, ouvrir StudiUM connecté et vérifier
   la première synchro (sesskey trouvé ? format ?) ; captures Web Store des nouveaux écrans ;
   la liste des « bugs visuels v2 » de l'étape 1 n'a jamais été reçue.
