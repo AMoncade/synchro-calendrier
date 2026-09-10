@@ -95,6 +95,18 @@ async function send<T = unknown>(message: Message): Promise<T> {
   return (await chrome.runtime.sendMessage(message)) as T;
 }
 
+/**
+ * `relativeTime` attend un ISO 8601 avec fuseau. Les instants du content script StudiUM
+ * (`syncedAt`, `at`) sont des locaux nus « AAAA-MM-JJTHH:MM » : on les relit comme heure
+ * locale du navigateur (la seule que le popup connaisse) avant de les comparer.
+ */
+function toIso(localOrIso: string): string {
+  if (/[Zz]$|[+-]\d{2}:?\d{2}$/.test(localOrIso)) return localOrIso;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(localOrIso);
+  if (!m) return localOrIso;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5])).toISOString();
+}
+
 function mondayOf(date: string): string {
   return addDays(date, -(isoWeekday(date) - 1));
 }
@@ -449,7 +461,7 @@ function dueLabel(d: Deadline, now: Now): string {
 function deadlineRow(d: Deadline, view: View, now: Now, key: string): HTMLElement {
   const status = deadlineStatus(d, now.dateTime);
   const code = resolveCourseCode(d, view.state.courseLinks);
-  const row = el("div", `dl-row ${status}${ui.expanded === key ? " open" : ""}`);
+  const row = el("div", `dl-row status-${status}${ui.expanded === key ? " open" : ""}`);
   row.style.borderLeftColor = code ? colorOf(code) : "var(--line)";
   const title = el("span", "title");
   if (code) title.append(swatch(code), document.createTextNode(`${sigle(code)} · `));
@@ -828,11 +840,14 @@ async function syncStudium(): Promise<void> {
 /** Ligne d'état StudiUM sous « Mis à jour … ». */
 function studiumStatusText(state: StoredState, nowIso: string): string {
   const st = state.studium;
-  if (!st || !st.lastSyncAt) return "StudiUM : ouvrez StudiUM une fois pour synchroniser vos échéances.";
-  const when = `StudiUM synchronisé ${relativeTime(st.lastSyncAt, nowIso)}`;
-  const failedAt = st.lastErrorAt ? ` ${relativeTime(st.lastErrorAt, nowIso)}` : "";
-  if (st.lastError === "sesskey-absent" || st.lastError === "invalidsesskey") return `${when} · session expirée${failedAt}, rouvrez StudiUM.`;
-  if (st.lastError) return `${when} · tentative échouée${failedAt} (${st.lastError}).`;
+  // Une erreur se montre même si aucune synchro n'a jamais réussi : sinon le premier
+  // échec resterait caché derrière « ouvrez StudiUM » (défaut vu à la première vraie visite).
+  const failedAt = st?.lastErrorAt ? ` ${relativeTime(toIso(st.lastErrorAt), nowIso)}` : "";
+  const when = st?.lastSyncAt ? `StudiUM synchronisé ${relativeTime(toIso(st.lastSyncAt), nowIso)}` : "StudiUM jamais synchronisé";
+  if (st?.lastError === "sesskey-absent") return `${when} · clé de session introuvable sur la page StudiUM${failedAt}. Signalez le bug.`;
+  if (st?.lastError === "invalidsesskey") return `${when} · session expirée${failedAt}, reconnectez-vous à StudiUM.`;
+  if (st?.lastError) return `${when} · tentative échouée${failedAt} (${st.lastError}).`;
+  if (!st?.lastSyncAt) return "StudiUM : ouvrez StudiUM une fois pour synchroniser vos échéances.";
   return when;
 }
 

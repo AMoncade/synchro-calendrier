@@ -170,9 +170,9 @@ a { color: var(--accent); }
 .dl-row .title { min-width: 0; }
 .dl-row .title .kind { color: var(--fg-2); font-weight: 400; }
 .dl-row .when { color: var(--fg-2); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.dl-row.overdue { opacity: 0.55; text-decoration: line-through; }
-.dl-row.due-today .when { color: var(--warn-fg); font-weight: 600; }
-.dl-row.open .when { color: var(--accent); }
+.dl-row.status-overdue { opacity: 0.55; text-decoration: line-through; }
+.dl-row.status-due-today .when { color: var(--warn-fg); font-weight: 600; }
+.dl-row.status-open .when { color: var(--accent); }
 .week-item.deadline .when { color: var(--fg-2); }
 .week-item.deadline .where { font-style: italic; }
 .source { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }

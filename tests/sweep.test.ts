@@ -222,7 +222,7 @@ describe("service worker : routage des messages de la phase 12", () => {
   // messages de la phase 12 tombent dans `default: return { ok: false }`. Les
   // cinq fonctions importées ligne 7 (mergeStudium, markStudiumFailed,
   // upsertDeadline, removeDeadline, setCourseLink) ne sont jamais appelées.
-  const orphelins: Array<[string, Message]> = [
+  const routes: Array<[string, Message]> = [
     ["STUDIUM_SYNCED", { type: "STUDIUM_SYNCED", deadlines: [], courses: [], syncedAt: "2026-09-10T07:05" }],
     ["STUDIUM_FAILED", { type: "STUDIUM_FAILED", error: "sesskey-absent", at: "2026-09-10T07:05" }],
     [
@@ -236,12 +236,14 @@ describe("service worker : routage des messages de la phase 12", () => {
     ["COURSE_LINK_SET", { type: "COURSE_LINK_SET", studiumCourseId: 4242, courseCode: "MAT1400" }],
   ];
 
-  for (const [name, message] of orphelins) {
-    it(`DÉFAUT CONNU — ${name} n'est pas routé : rien n'est persisté`, async () => {
+  // Corrigé le 2026-09-10 (défaut 1 du sweep) : les cinq cas étaient « DÉFAUT CONNU —
+  // n'est pas routé » ; le service worker route maintenant chacun et écrit une fois.
+  for (const [name, message] of routes) {
+    it(`${name} est routé : une écriture, réponse ok`, async () => {
       const { answer, writes } = await dispatch(message);
 
-      expect(answer).toEqual({ ok: false });
-      expect(writes).toBe(0);
+      expect(answer).toEqual({ ok: true });
+      expect(writes).toBe(1);
     });
   }
 });

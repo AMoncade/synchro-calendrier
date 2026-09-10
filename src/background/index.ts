@@ -53,6 +53,27 @@ async function handle(message: Message): Promise<unknown> {
     }
     case "GET_STATE":
       return loadState();
+    // Phase 12 — échéances : toute la logique est dans core/deadlines.ts (pure, testée).
+    // Réponse { ok: true } seulement : le content script n'attend rien, le popup relit
+    // l'état par GET_STATE après chaque écriture.
+    case "STUDIUM_SYNCED":
+      await saveState(mergeStudium(await loadState(), message.deadlines, message.courses, message.syncedAt));
+      return { ok: true };
+    case "STUDIUM_FAILED":
+      await saveState(markStudiumFailed(await loadState(), message.error, message.at));
+      return { ok: true };
+    case "DEADLINE_UPSERT":
+      await saveState(upsertDeadline(await loadState(), message.deadline));
+      return { ok: true };
+    case "DEADLINE_REMOVE":
+      await saveState(removeDeadline(await loadState(), message.id));
+      return { ok: true };
+    case "COURSE_LINK_SET":
+      await saveState(setCourseLink(await loadState(), message.studiumCourseId, message.courseCode));
+      return { ok: true };
+    case "STUDIUM_SYNC_NOW":
+      // Adressé au content script StudiUM par chrome.tabs.sendMessage, jamais au service worker.
+      return { ok: false };
     case "CLEAR_ALL": {
       // Le tampon anti-rafale du content script StudiUM part aussi : « Effacer » doit
       // permettre une resynchronisation immédiate à la prochaine visite.
@@ -60,8 +81,11 @@ async function handle(message: Message): Promise<unknown> {
       await chrome.action.setBadgeText({ text: "" });
       return { ok: true };
     }
-    default:
-      return { ok: false };
+    default: {
+      // Garde d'exhaustivité : ajouter un type à l'union Message sans le router ne compile plus.
+      const exhaustive: never = message;
+      return { ok: false, unhandled: exhaustive };
+    }
   }
 }
 
