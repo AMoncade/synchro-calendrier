@@ -33,6 +33,13 @@
   bloquants réglés, six captures refaites, « Non officiel » dans le résumé et le manifest.
   Décision de l'utilisateur : soumettre 0.3.0 avec les notes. Reste dans la console : nom
   d'éditeur, langue de la fiche, dépôt.
+- **Soumis au Chrome Web Store le 2026-09-10** sous le nom « ClientSide Horaire » (renommage
+  à 44fd138, étiquette `v0.3.0` sur ce commit ; id de l'élément dmedkofbjadbabmelocklkmcpellddje).
+  Dossier de dépôt assemblé dans Downloads : zip, fiche, formulaire de confidentialité (un seul
+  champ pour les deux hôtes, 977 caractères), instructions de test (repli « Coller mon horaire »
+  avec la fixture publique, aucun identifiant), icône 128, six captures, deux images
+  promotionnelles (`scripts/promo-images.mjs`, PNG RGB sans alpha). État : en attente d'examen,
+  examen approfondi annoncé à cause de l'accès à un hôte.
 - Était en vol : adrie-29 `grades-parse` (`core/grades.ts`, tableau repéré par en-têtes texte ;
   structure lue en direct sur MAT1600-AB-A26, HTML brut non capturable par l'outil),
   adrie-07 `grades-sync` (GET des rapports par site après la synchro calendrier, opt-in
