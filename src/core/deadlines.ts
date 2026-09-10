@@ -74,7 +74,9 @@ export function mergeStudium(
     kept[d.id] = d;
   }
   const studium: StudiumStatus = { lastSyncAt: syncedAt, lastError: null, lastErrorAt: null, courses };
-  return { ...state, deadlines: kept, studium };
+  // Une synchronisation ne décoche rien : `pruneDone` ne retire que les ids qui
+  // ne désignent plus aucune échéance. Une activité toujours là garde sa coche.
+  return pruneDone({ ...state, deadlines: kept, studium });
 }
 
 /**
@@ -131,7 +133,46 @@ export function removeDeadline(state: StoredState, id: string): StoredState {
     const hidden = state.hiddenDeadlines ?? [];
     if (!hidden.includes(id)) next.hiddenDeadlines = [...hidden, id];
   }
-  return next;
+  return pruneDone(next);
+}
+
+/**
+ * Coche ou décoche une échéance. Idempotent : cocher deux fois ne met pas l'id
+ * deux fois, décocher ce qui ne l'était pas ne fait rien. Retourne toujours un
+ * nouvel objet.
+ *
+ * L'existence de l'id n'est pas vérifiée : le popup ne coche que ce qu'il
+ * affiche, et un id devenu orphelin sort de la liste au prochain `pruneDone`.
+ */
+export function setDeadlineDone(state: StoredState, id: string, done: boolean): StoredState {
+  const current = state.doneDeadlines ?? [];
+  if (done) {
+    return current.includes(id) ? { ...state } : { ...state, doneDeadlines: [...current, id] };
+  }
+  return current.includes(id) ? { ...state, doneDeadlines: current.filter((x) => x !== id) } : { ...state };
+}
+
+/** Vrai si l'échéance est cochée « fait ». */
+export function isDone(state: StoredState, id: string): boolean {
+  return (state.doneDeadlines ?? []).includes(id);
+}
+
+/**
+ * Retire de `doneDeadlines` les ids qui ne désignent plus aucune échéance, pour
+ * que la liste ne grossisse pas à chaque trimestre. Appelé par `mergeStudium`
+ * (après remplacement des `studium:*`) et par `removeDeadline`.
+ *
+ * Conséquence voulue : une échéance StudiUM masquée sort de `deadlines`, donc
+ * sa coche part aussi. Si l'utilisateur la démasque un jour, elle revient
+ * décochée — c'est le prix d'une liste qui ne fuit pas, et `hiddenDeadlines`
+ * suffit à ne pas la réafficher.
+ */
+export function pruneDone(state: StoredState): StoredState {
+  const current = state.doneDeadlines ?? [];
+  if (current.length === 0) return { ...state };
+  const present = new Set(Object.keys(state.deadlines ?? {}));
+  const kept = current.filter((id) => present.has(id));
+  return kept.length === current.length ? { ...state } : { ...state, doneDeadlines: kept };
 }
 
 /**
@@ -212,7 +253,7 @@ export function deadlinesOn(deadlines: Deadline[], date: string): Deadline[] {
   return deadlines.filter((d) => dayOf(d.due) === date);
 }
 
-export type DeadlineStatus = "upcoming" | "open" | "due-today" | "overdue";
+export type DeadlineStatus = "done" | "upcoming" | "open" | "due-today" | "overdue";
 
 /**
  * Où en est une échéance à l'instant `now`. Le popup en tire son libellé :
@@ -221,10 +262,17 @@ export type DeadlineStatus = "upcoming" | "open" | "due-today" | "overdue";
  *
  * L'ordre des tests compte : une échéance qui tombe aujourd'hui est annoncée
  * comme telle même si sa fenêtre est déjà ouverte, parce que c'est l'échéance
- * qui presse, pas l'ouverture.
+ * qui presse, pas l'ouverture. Et « fait » prime sur tout le reste, y compris
+ * `overdue` : une remise cochée en retard n'a plus à alarmer.
+ *
+ * `done` vient de l'appelant (`isDone(state, d.id)` dans le popup) : le statut
+ * reste une fonction de ses arguments, ce module ne lit pas l'état ici.
  */
-export function deadlineStatus(d: Deadline, now: string): DeadlineStatus {
+export function deadlineStatus(d: Deadline, now: string, done?: boolean): DeadlineStatus {
+  // `now` est validé même quand l'échéance est cochée : un instant mal formé est
+  // une erreur d'appelant, elle ne doit pas se cacher derrière une case cochée.
   const { date, time } = parseLocalNow(now);
+  if (done === true) return "done";
   const instant = `${date}T${time}`;
   if (d.due < instant) return "overdue";
   if (dayOf(d.due) === date) return "due-today";
