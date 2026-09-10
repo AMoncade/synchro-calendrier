@@ -314,9 +314,15 @@ describe("deadlinesFromStudium — identité et idempotence", () => {
     expect(deadlinesFromStudium(capture)).toEqual(deadlinesFromStudium(capture));
   });
 
-  it("ne compte qu'une échéance quand deux mois qui se chevauchent renvoient l'événement", () => {
-    // Le vrai cas : la vue mensuelle de Moodle déborde sur les jours de
-    // remplissage du mois voisin, donc le content script concatène des doublons.
+  it("ne compte qu'une échéance quand le même événement arrive deux fois", () => {
+    // Correction du 2026-09-10 : ce test invoquait « deux mois qui se
+    // chevauchent ». C'est faux — `week_exporter` rend `prepadding` et
+    // `postpadding` comme des tableaux d'entiers de remplissage, pas des jours,
+    // donc deux vues mensuelles sont disjointes. Les vrais doublons viennent
+    // d'ailleurs : une resynchronisation à chaque visite StudiUM, ou la même
+    // échéance vue par `upcoming_view` et par `monthly_view`. La propriété
+    // reste nécessaire, seule sa justification était fausse. Voir
+    // docs/ARCHITECTURE.md §7.
     const doubled: RawStudiumCapture = {
       months: ["2026-09", "2026-10"],
       events: [...capture.events, ...capture.events],
@@ -326,8 +332,8 @@ describe("deadlinesFromStudium — identité et idempotence", () => {
   });
 
   it("garde le premier événement vu quand un doublon porte une autre heure", () => {
-    // Deux mois qui se chevauchent renvoient normalement des valeurs identiques ;
-    // si elles divergent, la règle est « premier vu gagne », pas « dernier écrase ».
+    // Deux passages successifs portent normalement des valeurs identiques ; si
+    // elles divergent, la règle est « premier vu gagne », pas « dernier écrase ».
     const deadlines = deadlinesFromStudium(
       raw([quizEvent("close", edt(17, 23, 59)), quizEvent("close", edt(18, 23, 59), { id: 2 })]),
     );
@@ -396,6 +402,47 @@ describe("deadlinesFromStudium — l'URL", () => {
   it("copie une URL de module telle quelle", () => {
     const [deadline] = deadlinesFromStudium(raw([quizEvent("close", edt(17, 23, 59))]));
     expect(deadline?.url).toBe("https://studium.umontreal.ca/mod/quiz/view.php?id=6624100");
+  });
+});
+
+describe("deadlinesFromStudium — le lieu", () => {
+  it("recopie le lieu quand Moodle en porte un", () => {
+    const [deadline] = deadlinesFromStudium(
+      raw([quizEvent("close", edt(17, 23, 59), { location: "Z-345 Pav. Claire-McNicoll" })]),
+    );
+    expect(deadline?.location).toBe("Z-345 Pav. Claire-McNicoll");
+  });
+
+  it("laisse le lieu absent plutôt que d'écrire une chaîne vide", () => {
+    // `location` vaut "" sur la quasi-totalité des événements : un quiz n'a pas
+    // de local. Le popup ne doit pas afficher « Lieu : » suivi de rien.
+    const [deadline] = deadlinesFromStudium(raw([quizEvent("close", edt(17, 23, 59), { location: "" })]));
+    expect(deadline?.location).toBeUndefined();
+    expect("location" in (deadline ?? {})).toBe(false);
+  });
+
+  it("laisse le lieu absent sur des espaces seuls ou une valeur non textuelle", () => {
+    const [blank] = deadlinesFromStudium(raw([quizEvent("close", edt(17, 23, 59), { location: "   " })]));
+    expect(blank?.location).toBeUndefined();
+    const [nulled] = deadlinesFromStudium(raw([quizEvent("close", edt(17, 23, 59), { location: null })]));
+    expect(nulled?.location).toBeUndefined();
+  });
+
+  it("rogne les espaces autour du lieu", () => {
+    const [deadline] = deadlinesFromStudium(
+      raw([quizEvent("close", edt(17, 23, 59), { location: "  En ligne  " })]),
+    );
+    expect(deadline?.location).toBe("En ligne");
+  });
+
+  it("prend le lieu du « se termine » plutôt que celui du « s'ouvre »", () => {
+    const [deadline] = deadlinesFromStudium(
+      raw([
+        quizEvent("open", edt(14, 10, 30), { location: "Salle d'ouverture" }),
+        quizEvent("close", edt(17, 23, 59), { location: "Salle de remise" }),
+      ]),
+    );
+    expect(deadline?.location).toBe("Salle de remise");
   });
 });
 

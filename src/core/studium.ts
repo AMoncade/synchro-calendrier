@@ -147,6 +147,7 @@ interface PreparedEvent {
   courseId?: number;
   courseCode?: string;
   url?: string;
+  location?: string;
 }
 
 /** Les trois rôles d'un même module ; `open` seul ne donne rien. */
@@ -210,6 +211,8 @@ export function deadlinesFromStudium(raw: RawStudiumCapture): Deadline[] {
     if (courseId !== undefined) deadline.studiumCourseId = courseId;
     const url = main.url ?? group.open?.url;
     if (url) deadline.url = url;
+    const location = main.location ?? group.open?.location;
+    if (location) deadline.location = location;
 
     if (!byId.has(deadline.id)) byId.set(deadline.id, deadline);
   }
@@ -265,7 +268,21 @@ function prepareEvent(event: RawMoodleEvent | undefined | null): PreparedEvent |
   if (parsed) prepared.courseCode = parsed.courseCode;
   const url = safeUrl(event.url);
   if (url) prepared.url = url;
+  const location = readLocation(event.location);
+  if (location) prepared.location = location;
   return prepared;
+}
+
+/**
+ * Le lieu, quand Moodle en porte un. Le champ est `PARAM_RAW`, optionnel, et
+ * vaut le plus souvent la chaîne vide — un quiz n'a pas de local. On refuse le
+ * vide plutôt que d'écrire `location: ""` dans l'état : le popup afficherait
+ * une ligne « Lieu : » sans lieu.
+ */
+function readLocation(location: unknown): string | undefined {
+  if (typeof location !== "string") return undefined;
+  const trimmed = location.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 function roleOf(eventtype: unknown): PreparedEvent["role"] | undefined {
