@@ -488,4 +488,115 @@ describe("runSync", () => {
       expect(sent).toEqual([]);
     });
   });
+
+  describe("moment où le tampon s'écrit", () => {
+    const STARTED_AT = new Date(2026, 8, 10, 7, 5).getTime();
+    const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it("un run interrompu en plein fetch ne laisse aucun tampon", async () => {
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const stub = vi.fn(async (url: string) => {
+        await held;
+        return jsonResponse([
+          { error: false, data: url.includes(TIMELINE) ? { courses: [] } : monthlyView([]) },
+        ]);
+      });
+      vi.stubGlobal("fetch", stub);
+
+      const { env, sent, runs } = envWith();
+      const inFlight = runSync(env, { force: false });
+      await tick();
+
+      // C'est ici que la page navigue. Le contexte du content script est détruit :
+      // aucun `catch`, aucun `finally`, plus une ligne ne s'exécute. Ce que le
+      // storage contient à cet instant est tout ce que la page suivante verra —
+      // et ce doit être rien, sinon elle est étouffée 30 min sans un message.
+      expect(stub).toHaveBeenCalledTimes(1);
+      expect(runs).toEqual([]);
+      expect(sent).toEqual([]);
+
+      // Sans navigation, le run va au bout et pose son tampon normalement.
+      release();
+      await inFlight;
+      expect(runs).toEqual([STARTED_AT]);
+    });
+
+    it("pose le tampon à la fin d'un échec HTTP, qui ne se relance pas", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, 403)));
+
+      const { env, sent, runs } = envWith();
+      await runSync(env, { force: false });
+
+      // Un 403 n'est pas une erreur réseau : pas de relance, mais le run est
+      // allé au bout, donc le tampon protège le serveur d'une rafale.
+      expect(sent[0]).toEqual({
+        type: "STUDIUM_FAILED",
+        error: "http-403",
+        at: "2026-09-10T07:05",
+      });
+      expect(runs).toEqual([STARTED_AT]);
+    });
+
+    it("pose un seul tampon après une relance réseau elle aussi infructueuse", async () => {
+      const stub = vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      });
+      vi.stubGlobal("fetch", stub);
+
+      const { env, sent, runs } = envWith({ retryDelayMs: 0 });
+      await runSync(env, { force: false });
+
+      expect(stub).toHaveBeenCalledTimes(2); // premier essai + une relance, pas plus
+      expect(runs).toEqual([STARTED_AT]); // un seul tampon, posé après la relance
+      expect(sent[0]?.type).toBe("STUDIUM_FAILED");
+    });
+
+    it("DÉLIBÉRÉ : deux onglets ouverts ensemble synchronisent tous les deux", async () => {
+      // Contrepartie assumée du tampon écrit en fin de run (WORKLOG 2026-09-10).
+      // `chrome.storage` n'offre pas de lecture-écriture atomique, et la fenêtre
+      // entre la lecture et l'écriture dure désormais toute la capture. Deux
+      // onglets StudiUM restaurés ensemble font donc 12 requêtes au lieu de 6.
+      //
+      // Ce test FIGE ce comportement pour qu'il ne soit pas « corrigé » sans voir
+      // qu'il est choisi : l'alternative — écrire le tampon avant les appels —
+      // rouvrait une zone morte de 30 min, silencieuse et sans erreur, sur toute
+      // page qui navigue pendant le fetch. Le doublon est en lecture seule et
+      // rare ; la zone morte cassait la fonction. Si un marqueur « run en cours »
+      // est ajouté un jour, c'est ce test-ci qui doit changer, délibérément.
+      const stub = vi.fn(async (url: string) =>
+        jsonResponse([
+          { error: false, data: url.includes(TIMELINE) ? { courses: [] } : monthlyView([]) },
+        ]),
+      );
+      vi.stubGlobal("fetch", stub);
+
+      // Un seul storage pour les deux onglets, comme dans le vrai navigateur.
+      let tampon: number | undefined;
+      const shared = {
+        readLastRun: async () => tampon,
+        writeLastRun: async (atMs: number) => void (tampon = atMs),
+      };
+      const ongletA = envWith(shared);
+      const ongletB = envWith(shared);
+
+      await Promise.all([
+        runSync(ongletA.env, { force: false }),
+        runSync(ongletB.env, { force: false }),
+      ]);
+
+      expect(stub).toHaveBeenCalledTimes(12); // 6 + 6 : les deux ont lu avant que l'un écrive
+      expect(ongletA.sent[0]?.type).toBe("STUDIUM_SYNCED");
+      expect(ongletB.sent[0]?.type).toBe("STUDIUM_SYNCED");
+
+      // La course tient à la simultanéité, pas à un tampon inopérant : un
+      // troisième onglet qui arrive après coup est bien étouffé.
+      const ongletC = envWith(shared);
+      await runSync(ongletC.env, { force: false });
+      expect(stub).toHaveBeenCalledTimes(12);
+      expect(ongletC.sent).toEqual([]);
+    });
+  });
 });
