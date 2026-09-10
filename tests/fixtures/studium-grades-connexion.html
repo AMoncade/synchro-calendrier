@@ -1,0 +1,25 @@
+<!--
+  FIXTURE SYNTHÉTIQUE — 2026-09-10. Ce que StudiUM rend quand la session a
+  expiré : la page de connexion, avec un statut HTTP 200. Le parseur doit rendre
+  `undefined` plutôt que d'inventer un carnet vide, sinon une session expirée
+  effacerait les notes déjà stockées.
+-->
+<div id="page-login-index">
+  <h1>StudiUM</h1>
+  <form action="https://studium.umontreal.ca/login/index.php" method="post">
+    <table class="generaltable">
+      <tbody>
+        <tr>
+          <th scope="row"><label for="username">Nom d’utilisateur</label></th>
+          <td><input type="text" id="username" name="username"></td>
+        </tr>
+        <tr>
+          <th scope="row"><label for="password">Mot de passe</label></th>
+          <td><input type="password" id="password" name="password"></td>
+        </tr>
+      </tbody>
+    </table>
+    <button type="submit">Connexion</button>
+  </form>
+  <p>Vous devez vous authentifier pour accéder à cette page.</p>
+</div>
