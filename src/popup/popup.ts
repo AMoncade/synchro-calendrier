@@ -336,8 +336,14 @@ function detailsPanel(o: Occurrence, view: View): HTMLElement {
     const course = view.schedule.courses.find((c) => c.code === o.courseCode && (d.section === "" || c.section === d.section) && componentName(c.component) === d.component);
     if (course) {
       box.append(el("div", "sub", course.title));
+      // Une même séance hebdomadaire apparaît une fois par plage de dates : on la
+      // montre une seule fois, les plages sont listées en dessous.
+      const seen = new Set<string>();
       for (const m of course.meetings) {
-        box.append(el("div", "sub", `${weekdayName(m.weekday, "short")} ${m.start}–${m.end} · ${formatLocation(m.location)}`));
+        const line = `${weekdayName(m.weekday, "short")} ${m.start}–${m.end} · ${formatLocation(m.location)}`;
+        if (seen.has(line)) continue;
+        seen.add(line);
+        box.append(el("div", "sub", line));
       }
       const ranges = [...new Set(course.meetings.map((m) => `${dayMonthShort(m.dateStart)} → ${dayMonthShort(m.dateEnd)}`))];
       box.append(el("div", "dim", ranges.join("  ·  ")));

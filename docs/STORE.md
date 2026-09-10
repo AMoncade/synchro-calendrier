@@ -29,11 +29,13 @@ Synchro Calendrier transforme l'horaire du Centre étudiant de l'Université de 
 
 CE QU'ELLE FAIT
 
-• Export .ics — vos séances hebdomadaires deviennent des événements récurrents, avec le local et le volet (théorie, travaux pratiques, laboratoire). Importez le fichier dans Google Agenda, Outlook ou Apple Calendrier.
+• Aujourd'hui — le cours en cours, le suivant, le temps qu'il reste, le local et le pavillon. Le soir, la vue passe à demain ; le week-end, au prochain jour de cours.
+• Semaine — vos séances jour par jour, congés et relâche nommés, navigation d'une semaine à l'autre, détails au clic (plages de dates, copier le local, carte du campus).
+• Examens — intras et finaux séparés, jours restants, alerte quand plusieurs examens tombent en quelques jours, ajout d'un examen à Google Agenda en un clic.
+• Export .ics — vos séances hebdomadaires deviennent des événements récurrents avec le local et le volet, vos examens des événements datés avec rappels 24 h et 1 h avant. Importez le fichier dans Google Agenda, Outlook ou Apple Calendrier.
 • Semaine de relâche et jours fériés retirés — le calendrier universitaire de l'UdeM est intégré, trimestre par trimestre. Pas de cours fantôme un lundi férié.
-• Examens — les examens intra et finaux de votre horaire sont exportés comme événements datés et listés à part.
-• Conflits d'horaire — deux séances qui se chevauchent, un cours pendant un examen, deux examens la même journée : tout est signalé dans le popup.
-• Compte à rebours — l'icône de la barre d'outils affiche le nombre de jours avant votre prochain examen.
+• Conflits d'horaire — deux séances qui se chevauchent ou un cours pendant un examen : signalé.
+• Badge — l'icône de la barre d'outils affiche le nombre de cours qu'il vous reste aujourd'hui.
 • Repli manuel — si l'extraction automatique échoue, collez le texte de la page : le résultat est le même.
 
 COMMENT L'UTILISER
@@ -88,7 +90,7 @@ Conserve l'horaire extrait (cours, examens, trimestre) dans le stockage local du
 ### `alarms`
 
 ```
-Réveille le service worker une fois par heure pour recalculer le nombre de jours restants avant le prochain examen affiché sur l'icône. Sans cette autorisation, le compte à rebours resterait figé à la valeur calculée lors de la dernière visite, un service worker MV3 étant arrêté quand il est inactif.
+Réveille le service worker toutes les 15 minutes pour recalculer le nombre de cours restants dans la journée, affiché sur l'icône. Sans cette autorisation, le badge resterait figé à la valeur calculée lors de la dernière visite, un service worker MV3 étant arrêté quand il est inactif.
 ```
 
 ### Autorisation d'hôte `https://*.synchro.umontreal.ca/*`
@@ -135,26 +137,20 @@ Les trois certifications demandées sont toutes vraies et doivent être cochées
 **URL de la politique de confidentialité** : lien vers `docs/PRIVACY.md` sur le dépôt
 public, à remplacer par une page hébergée si le dépôt devient privé.
 
-## Captures d'écran à produire
+## Captures d'écran
 
-Cinq captures, **1280 × 800 px**, PNG, sans matricule ni nom lisible (utiliser les données
-anonymisées des fixtures ou un compte de démonstration). Ordre proposé, la première étant
-l'image mise en avant :
+Captures **1280 × 800 px**, PNG, produites dans `docs/store/` par rendu du popup hors
+extension sur l'horaire réel A2026 anonymisé (fixtures), sans matricule ni nom. Ordre de
+téléversement, la première étant l'image mise en avant :
 
-1. **Le popup complet, horaire chargé.** Trimestre en en-tête, prochain examen, la liste
-   des cours avec locaux et volets, les deux boutons d'action bien visibles. C'est la
-   capture qui doit se comprendre sans légende.
-2. **Un conflit détecté.** Le bloc « Conflits » en haut du popup, avec au moins deux
-   entrées de genres différents : un chevauchement cours-cours et un cours pendant un
-   examen. Montre la valeur ajoutée que le Centre étudiant n'offre pas.
-3. **Le compte à rebours sur l'icône.** Gros plan sur la barre d'outils, badge affichant un
-   nombre de jours, popup ouvert sur la section « Prochain examen ». Recadrer ou zoomer :
-   un badge de 16 px est illisible sur une capture pleine largeur.
-4. **Le résultat dans Google Agenda.** Vue semaine de l'agenda après import du `.ics` :
-   séances récurrentes avec locaux, un examen, et un lundi férié sans cours. Prouve que
-   l'export fonctionne réellement.
-5. **Les trois étapes de capture.** La vue « Liste » de Synchro à gauche, l'écran d'accueil
-   du popup avec ses trois étapes à droite. Sert de mode d'emploi pour qui hésite.
+1. **Aujourd'hui** — cours en cours, suivant, temps restant, local et pavillon.
+2. **Semaine** — liste par jour, congé nommé, locaux à droite.
+3. **Examens** — intras et finaux, jours restants, alerte de grappe.
+4. **Détail d'un cours** — plages de dates, copier le local, carte du campus.
+5. **Demain** — bascule automatique en soirée.
+
+À produire ensuite à la main si souhaité : le résultat dans Google Agenda après import du
+`.ics` (vue semaine, un lundi férié vide).
 
 **Icône promotionnelle** : 128 × 128, générée par `node scripts/make-icons.mjs`. Les
 bandeaux promotionnels (440 × 280 et 1400 × 560) restent facultatifs tant que l'extension
