@@ -314,23 +314,21 @@ describe("regroupement par panier : homonymes dans un même site", () => {
     expect(deadlines[0]?.start).toBeDefined();
   });
 
-  it("DÉFAUT CONNU — l'arrivée d'un homonyme retire sa fenêtre à l'échéance qui l'avait", () => {
-    // Même panier, deux cmids : `lone` devient indéfini, l'ouverture sans URL ne
-    // rejoint plus personne et redevient un `open` orphelin — donc jetée. L'id de
-    // l'échéance existante ne bouge pas (c'est l'acquis de 8622ebe), mais son
-    // `start` disparaît d'une synchronisation à l'autre, sans bruit.
-    //
-    // ATTENDU APRÈS CORRECTION : `studium:111` garde `start`. Rattacher une
-    // ouverture sans cmid au cmid le plus proche dans le temps (le seul dont la
-    // fermeture suit l'ouverture) suffirait ; c'est une décision pour adrie-29.
+  it("l'arrivée d'un homonyme ne retire plus sa fenêtre à l'échéance qui l'avait", () => {
+    // Historique : jusqu'à 8622ebe, avec deux cmids dans le panier, l'ouverture sans URL
+    // ne rejoignait plus personne et était jetée — l'id tenait, la fenêtre disparaissait
+    // sans bruit (trouvé par adrie-f6, second passage). Corrigé le 2026-09-10 par adrie-29
+    // (studium-homonymes 23746bc) : un événement sans cmid rejoint le groupe qui attend
+    // encore son rôle, le plus proche dans le bon sens du temps ; égalité parfaite → orphelin.
+    // Ici une seule fermeture attend une ouverture qui la précède : studium:111.
     const avant = deadlinesFromStudium(capture([fermeture111, ouvertureSansUrl]));
     const apres = deadlinesFromStudium(capture([fermeture111, ouvertureSansUrl, fermeture222]));
 
     expect(avant[0]?.start).toBeDefined();
     expect(apres).toHaveLength(2);
     expect(apres.map((d) => d.id)).toEqual(["studium:111", "studium:222"]);
-    expect(apres[0]?.start).toBeUndefined(); // fenêtre perdue
-    expect(apres[1]?.start).toBeUndefined();
+    expect(apres[0]?.start).toBeDefined(); // fenêtre conservée
+    expect(apres[1]?.start).toBeUndefined(); // la seconde n'hérite de rien
   });
 
   it("l'id reste stable malgré l'homonyme : le masquage tient toujours", () => {
