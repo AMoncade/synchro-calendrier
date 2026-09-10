@@ -168,11 +168,26 @@ export function resolveCourseCode(d: Deadline, links: CourseLinks | undefined): 
  * exactement la même liste.
  */
 export function allDeadlines(state: StoredState): Deadline[] {
-  return Object.values(state.deadlines ?? {}).sort((a, b) => {
-    if (a.due !== b.due) return a.due < b.due ? -1 : 1;
-    const byTitle = a.title.localeCompare(b.title, "fr");
-    return byTitle !== 0 ? byTitle : a.id.localeCompare(b.id);
-  });
+  return Object.values(state.deadlines ?? {}).sort(
+    (a, b) => compareStrings(a.due, b.due) || compareStrings(a.title, b.title) || compareStrings(a.id, b.id),
+  );
+}
+
+/**
+ * Comparaison de chaînes par unités de code, comme `alerts.ts`, `conflicts.ts`,
+ * `countdown.ts`, `studium.ts` et `today.ts` — cinq copies volontaires du même
+ * trois-lignes, plutôt qu'un module utilitaire pour ça.
+ *
+ * Pas de `localeCompare` : le classement dépendrait de la version d'ICU du
+ * navigateur, alors que `core/` doit être déterministe (CLAUDE.md), et
+ * `deadlinesFromStudium` trie déjà la même liste avec cette règle-ci.
+ * Conséquence assumée : sur deux échéances qui tombent à la **même minute**,
+ * un titre à initiale accentuée (« Évaluation ») passe après « Zoo ». Le titre
+ * ne départage que ces ex æquo-là, et un ordre stable vaut mieux qu'un ordre
+ * joli qui change d'un navigateur à l'autre.
+ */
+function compareStrings(x: string, y: string): number {
+  return x < y ? -1 : x > y ? 1 : 0;
 }
 
 // ---------------------------------------------------------------------------

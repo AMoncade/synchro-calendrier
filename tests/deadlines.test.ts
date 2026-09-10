@@ -294,6 +294,37 @@ describe("allDeadlines", () => {
     expect(allDeadlines(state).map((d) => d.id)).toEqual(["manuel:a", "manuel:b"]);
   });
 
+  it("compare les titres par unités de code, pas par collation locale", () => {
+    // Régression (2026-09-10, signalée par adrie-29) : `localeCompare(…, "fr")`
+    // rendait « Évaluation » avant « Examen » et avant « Zoo », alors que
+    // `deadlinesFromStudium` — qui trie la même liste — compare en brut. L'ordre
+    // dépendait en plus de la version d'ICU du navigateur, ce que `core/` interdit.
+    //
+    // Ordre attendu, par unités de code : « Examen » < « Zoo » < « Évaluation »
+    // (É vaut U+00C9, après Z). Ce n'est pas l'ordre d'un dictionnaire français ;
+    // c'est l'ordre stable, et il ne s'applique qu'aux ex æquo sur `due`.
+    const state = stateWith([
+      manuel("c", "2026-09-15T23:59", { title: "Évaluation" }),
+      manuel("a", "2026-09-15T23:59", { title: "Examen" }),
+      manuel("b", "2026-09-15T23:59", { title: "Zoo" }),
+    ]);
+
+    expect(allDeadlines(state).map((d) => d.title)).toEqual(["Examen", "Zoo", "Évaluation"]);
+    // Le témoin, sans passer par `localeCompare` : l'assertion elle-même ne doit
+    // pas dépendre de l'ICU du runtime, sinon elle a le défaut qu'elle dénonce.
+    expect("Évaluation" < "Examen").toBe(false);
+    expect("Évaluation" < "Zoo").toBe(false);
+  });
+
+  it("un titre accentué ne change pas l'ordre quand les instants diffèrent", () => {
+    const state = stateWith([
+      manuel("b", "2026-09-16T09:00", { title: "Examen" }),
+      manuel("a", "2026-09-15T23:59", { title: "Évaluation" }),
+    ]);
+
+    expect(allDeadlines(state).map((d) => d.title)).toEqual(["Évaluation", "Examen"]);
+  });
+
   it("un état sans échéances rend une liste vide", () => {
     const before: StoredState = { schedules: {}, sources: {}, lastCapturedAt: null, lastSource: null };
 
