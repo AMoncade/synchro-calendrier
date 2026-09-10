@@ -936,7 +936,8 @@ function gradesBlock(r: GradeReport, view: View): HTMLElement {
   head.append(el("span", "name", "Élément"), el("span", "num", "Note"), el("span", "num", "Sur"), el("span", "num", "Moyenne"));
   box.append(head);
   if (r.items.length === 0) box.append(el("p", "dim", "Rien de publié pour l'instant."));
-  for (const item of r.items) box.append(gradeRow(item, item.depth === undefined || item.depth === 0 ? "" : "cat"));
+  // `depth` = crans d'indentation (catégorie racine 0) ; une ligne de catégorie est un item sans note.
+  for (const item of r.items) box.append(gradeRow(item, item.depth === 0 ? "cat" : ""));
   if (r.total) box.append(gradeRow({ ...r.total, name: "Total du cours" }, "total"));
   return box;
 }

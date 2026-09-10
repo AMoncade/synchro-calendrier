@@ -87,6 +87,11 @@ Phase 12 (2026-09-10, trois sessions en worktrees, intégratrice `adrie-aa`) :
 | `src/content/studium.ts`, `tests/studium-content.test.ts` | session **studium-sync** | `studium-sync` |
 | `src/core/model.ts`, `src/lib/messages.ts`, `src/background/index.ts`, `manifest.json`, `src/popup/*`, `docs/*` | intégratrice | `main` |
 
+Phase 13 (2026-09-10) : `src/core/grades.ts`, `tests/grades.test.ts`, `tests/fixtures/studium-grades-*.html`
+→ session **grades-parse** (adrie-29) ; cochage dans `core/deadlines.ts` → adrie-f6 (`deadlines-done`) ;
+lecture opt-in des carnets dans `content/studium.ts` → adrie-07 (`grades-sync`) ; passes de couture
+`sweep`/`sweep-2` → adrie-f6 (`tests/sweep.test.ts`).
+
 Un patch sur un fichier de l'intégratrice (manifest, background, messages) se **propose dans
 le rapport de fin**, il ne se commite pas sur la branche.
 

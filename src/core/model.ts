@@ -202,7 +202,7 @@ export interface RawMoodleEvent {
 export interface GradeItem {
   /** « Test de connaissances préliminaires », « Quiz-tp3 ». */
   name: string;
-  /** Note telle qu'affichée, "-" si non publiée. */
+  /** Note telle qu'affichée ; chaîne vide si la cellule l'est (jamais normalisée : « - » reste « - »). */
   grade: string;
   /** « 0–10 » (Valeurs possibles). */
   range?: string;
@@ -213,7 +213,7 @@ export interface GradeItem {
   /** Moyenne du groupe, si le cours l'expose. */
   average?: string;
   feedback?: string;
-  /** Profondeur dans le carnet (0 = élément, 1+ = catégorie), pour l'indentation. */
+  /** Crans d'indentation : catégorie racine 0, ses éléments 1, sous-catégorie et ses éléments 2… Les lignes de catégorie sont des items comme les autres. */
   depth?: number;
   /** Lien vers l'activité, sans jeton. */
   url?: string;
