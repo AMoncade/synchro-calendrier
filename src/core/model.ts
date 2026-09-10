@@ -187,6 +187,8 @@ export interface RawMoodleEvent {
   modulename?: string | null; // "quiz", "assign", …
   component?: string | null;
   activityname?: string | null; // "Quiz-tp3"
+  /** PARAM_RAW côté Moodle, optionnel, souvent vide ; recopié dans Deadline.location (2026-09-10, patch adrie-29). */
+  location?: string | null;
   url?: string; // "https://studium.umontreal.ca/mod/quiz/view.php?id=6624079"
   course?: { id: number; shortname: string; fullname: string; idnumber?: string } | null;
 }
