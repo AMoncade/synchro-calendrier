@@ -353,6 +353,61 @@ describe("deadlinesFromStudium — identité et idempotence", () => {
     expect(deadline?.id).toBe("studium:366018:quiz-obligatoire-theme-1");
   });
 
+  it("garde la fenêtre quand seul le « s'ouvre » porte une URL", () => {
+    // Défaut de couture (2026-09-10) : le regroupement suivait le cmid, donc
+    // une URL manquante d'un côté scindait l'activité en deux — l'ouverture
+    // partait comme orpheline et l'échéance sortait sans fenêtre, sans bruit.
+    const deadlines = deadlinesFromStudium(
+      raw([quizEvent("open", edt(14, 10, 30)), quizEvent("close", edt(17, 23, 59), { url: undefined })]),
+    );
+    expect(deadlines).toHaveLength(1);
+    expect(deadlines[0]?.id).toBe("studium:6624100");
+    expect(deadlines[0]?.start).toBe("2026-09-14T10:30");
+    expect(deadlines[0]?.due).toBe("2026-09-17T23:59");
+  });
+
+  it("garde le même id quand c'est le « se termine » qui porte l'URL", () => {
+    const deadlines = deadlinesFromStudium(
+      raw([quizEvent("open", edt(14, 10, 30), { url: undefined }), quizEvent("close", edt(17, 23, 59))]),
+    );
+    expect(deadlines).toHaveLength(1);
+    expect(deadlines[0]?.id).toBe("studium:6624100");
+    expect(deadlines[0]?.start).toBe("2026-09-14T10:30");
+  });
+
+  it("ne fusionne pas deux activités homonymes du même cours", () => {
+    // Moodle autorise deux activités de même nom dans un cours. Regrouper sur
+    // le seul couple site + nom les confondrait et en ferait DISPARAÎTRE une :
+    // deux cmids distincts restent deux échéances.
+    const deadlines = deadlinesFromStudium(
+      raw([
+        quizEvent("close", edt(17, 23, 59), { id: 1 }),
+        quizEvent("close", edt(24, 23, 59), {
+          id: 2,
+          url: "https://studium.umontreal.ca/mod/quiz/view.php?id=6624200",
+        }),
+      ]),
+    );
+    expect(deadlines.map((d) => d.id)).toEqual(["studium:6624100", "studium:6624200"]);
+  });
+
+  it("n'attribue pas un événement sans URL quand le nom est ambigu", () => {
+    // Deux cmids sous le même nom : impossible de savoir auquel rattacher une
+    // ouverture sans URL. On ne devine pas — elle reste orpheline et tombe.
+    const deadlines = deadlinesFromStudium(
+      raw([
+        quizEvent("close", edt(17, 23, 59), { id: 1 }),
+        quizEvent("close", edt(24, 23, 59), {
+          id: 2,
+          url: "https://studium.umontreal.ca/mod/quiz/view.php?id=6624200",
+        }),
+        quizEvent("open", edt(14, 10, 30), { id: 3, url: undefined }),
+      ]),
+    );
+    expect(deadlines.map((d) => d.id)).toEqual(["studium:6624100", "studium:6624200"]);
+    expect(deadlines.every((d) => d.start === undefined)).toBe(true);
+  });
+
   it("ne confond pas l'id d'une URL de site avec un cmid", () => {
     // `/course/view.php?id=349955` porte un courseid, pas un id de module :
     // le prendre pour un cmid fabriquerait un id faux et fusionnerait à tort.

@@ -138,8 +138,11 @@ export function studiumCourses(raw: RawStudiumCapture): StudiumCourse[] {
 
 /** Un événement retenu, réduit à ce qui sert à construire l'échéance. */
 interface PreparedEvent {
-  key: string;
-  id: string;
+  /** Panier de regroupement : `courseid + nom normalisé`, ou le cmid faute de site. */
+  bucket: string;
+  /** Id du module tiré de l'URL, quand cet événement-ci en porte une. */
+  cmid?: string;
+  slug: string;
   role: typeof OPEN | typeof CLOSE | typeof DUE;
   timestart: number;
   title: string;
@@ -150,8 +153,10 @@ interface PreparedEvent {
   location?: string;
 }
 
-/** Les trois rôles d'un même module ; `open` seul ne donne rien. */
+/** Les trois rôles d'une même activité ; `open` seul ne donne rien. */
 interface EventGroup {
+  /** Cmid retenu pour le groupe, s'il en existe un. Décide de la forme de l'id. */
+  cmid?: string;
   open?: PreparedEvent;
   close?: PreparedEvent;
   due?: PreparedEvent;
@@ -172,18 +177,40 @@ interface EventGroup {
  * échéance par `id`.
  */
 export function deadlinesFromStudium(raw: RawStudiumCapture): Deadline[] {
-  const groups = new Map<string, EventGroup>();
-
+  // Premier temps : les paniers. Le regroupement ne suit JAMAIS le cmid seul,
+  // sinon une activité dont un des deux événements n'a pas d'URL se scinde en
+  // deux — l'ouverture partirait comme orpheline et l'échéance perdrait sa
+  // fenêtre, sans bruit (défaut relevé par la passe de couture, 2026-09-10).
+  const buckets = new Map<string, PreparedEvent[]>();
   for (const event of asArray(raw?.events)) {
     const prepared = prepareEvent(event);
     if (!prepared) continue;
-    let group = groups.get(prepared.key);
-    if (!group) {
-      group = {};
-      groups.set(prepared.key, group);
+    const list = buckets.get(prepared.bucket);
+    if (list) list.push(prepared);
+    else buckets.set(prepared.bucket, [prepared]);
+  }
+
+  // Second temps : à l'intérieur d'un panier, deux cmids distincts sont deux
+  // activités distinctes, même sous le même nom — Moodle autorise les
+  // homonymes dans un cours. Les fusionner ferait DISPARAÎTRE une échéance,
+  // ce qui est pire que le défaut qu'on corrige. Un événement sans cmid ne
+  // rejoint donc le cmid du panier que si ce panier n'en a qu'un seul.
+  const groups = new Map<string, EventGroup>();
+  for (const [bucket, list] of buckets) {
+    const cmids = new Set<string>();
+    for (const prepared of list) if (prepared.cmid) cmids.add(prepared.cmid);
+    const lone = cmids.size === 1 ? [...cmids][0] : undefined;
+    for (const prepared of list) {
+      const cmid = prepared.cmid ?? lone;
+      const key = `${bucket}#${cmid ?? ""}`;
+      let group = groups.get(key);
+      if (!group) {
+        group = cmid === undefined ? {} : { cmid };
+        groups.set(key, group);
+      }
+      // Premier vu gagne : deux passages successifs portent les mêmes valeurs.
+      if (!group[prepared.role]) group[prepared.role] = prepared;
     }
-    // Premier vu gagne : un doublon de mois chevauchant porte les mêmes valeurs.
-    if (!group[prepared.role]) group[prepared.role] = prepared;
   }
 
   const byId = new Map<string, Deadline>();
@@ -192,8 +219,24 @@ export function deadlinesFromStudium(raw: RawStudiumCapture): Deadline[] {
     const main = group.due ?? group.close;
     if (!main) continue; // « open » orphelin
 
+    // L'id se décide sur le GROUPE, pas sur l'événement : dès qu'un membre
+    // porte un cmid, toute l'activité s'identifie par lui, même si l'autre
+    // événement n'avait pas d'URL. Sans ça l'id changerait d'une synchro à
+    // l'autre — l'échéance masquée reviendrait (`removeDeadline` masque par id)
+    // et l'agenda verrait un ajout au lieu d'une mise à jour (`deadlineUid`).
+    // Résidu assumé : une activité dont l'URL disparaît de TOUS ses événements
+    // change d'id. `calendar_event_exporter` rend `url` systématiquement pour
+    // un module, donc ce cas ne devrait pas exister.
+    const courseIdForId = main.courseId ?? group.open?.courseId;
+    const id = group.cmid
+      ? `studium:${group.cmid}`
+      : courseIdForId !== undefined
+        ? `studium:${courseIdForId}:${main.slug}`
+        : undefined;
+    if (!id) continue; // ni cmid ni site : rien de stable à quoi accrocher l'échéance
+
     const deadline: Deadline = {
-      id: main.id,
+      id,
       source: "studium",
       title: main.title,
       kind: main.kind,
@@ -246,23 +289,23 @@ function prepareEvent(event: RawMoodleEvent | undefined | null): PreparedEvent |
   const course = event.course && typeof event.course === "object" ? event.course : undefined;
   const courseId = typeof course?.id === "number" && Number.isFinite(course.id) ? course.id : undefined;
 
-  // Clé de fusion : le `cmid` identifie l'activité indépendamment du libellé.
-  // À défaut (URL absente ou d'une autre forme), le couple site + nom normalisé.
+  // Panier de regroupement : site + nom normalisé, le seul couple que « s'ouvre »
+  // et « se termine » partagent à coup sûr — le cmid, lui, dépend de la présence
+  // d'une URL sur CET événement-là. À défaut de site, le cmid fait office de
+  // panier (le nom seul ne dirait pas de quel cours il s'agit).
   const cmid = moduleIdOf(event.url);
   const slug = slugify(title);
-  let key: string;
-  let id: string;
-  if (cmid) {
-    key = `cmid:${cmid}`;
-    id = `studium:${cmid}`;
-  } else if (courseId !== undefined && slug) {
-    key = `course:${courseId}:${slug}`;
-    id = `studium:${courseId}:${slug}`;
+  let bucket: string;
+  if (courseId !== undefined && slug) {
+    bucket = `course:${courseId}:${slug}`;
+  } else if (cmid) {
+    bucket = `cmid:${cmid}`;
   } else {
-    return undefined; // ni module ni site : rien de stable à quoi accrocher l'échéance
+    return undefined; // ni site ni module : rien de stable à quoi accrocher l'échéance
   }
 
-  const prepared: PreparedEvent = { key, id, role, timestart, title, kind: kindOf(event, role) };
+  const prepared: PreparedEvent = { bucket, slug, role, timestart, title, kind: kindOf(event, role) };
+  if (cmid) prepared.cmid = cmid;
   if (courseId !== undefined) prepared.courseId = courseId;
   const parsed = course ? parseShortname(course.shortname) : undefined;
   if (parsed) prepared.courseCode = parsed.courseCode;
