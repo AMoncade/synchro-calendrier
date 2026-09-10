@@ -314,9 +314,15 @@ describe("deadlinesFromStudium — identité et idempotence", () => {
     expect(deadlinesFromStudium(capture)).toEqual(deadlinesFromStudium(capture));
   });
 
-  it("ne compte qu'une échéance quand deux mois qui se chevauchent renvoient l'événement", () => {
-    // Le vrai cas : la vue mensuelle de Moodle déborde sur les jours de
-    // remplissage du mois voisin, donc le content script concatène des doublons.
+  it("ne compte qu'une échéance quand le même événement arrive deux fois", () => {
+    // Correction du 2026-09-10 : ce test invoquait « deux mois qui se
+    // chevauchent ». C'est faux — `week_exporter` rend `prepadding` et
+    // `postpadding` comme des tableaux d'entiers de remplissage, pas des jours,
+    // donc deux vues mensuelles sont disjointes. Les vrais doublons viennent
+    // d'ailleurs : une resynchronisation à chaque visite StudiUM, ou la même
+    // échéance vue par `upcoming_view` et par `monthly_view`. La propriété
+    // reste nécessaire, seule sa justification était fausse. Voir
+    // docs/ARCHITECTURE.md §7.
     const doubled: RawStudiumCapture = {
       months: ["2026-09", "2026-10"],
       events: [...capture.events, ...capture.events],
@@ -326,8 +332,8 @@ describe("deadlinesFromStudium — identité et idempotence", () => {
   });
 
   it("garde le premier événement vu quand un doublon porte une autre heure", () => {
-    // Deux mois qui se chevauchent renvoient normalement des valeurs identiques ;
-    // si elles divergent, la règle est « premier vu gagne », pas « dernier écrase ».
+    // Deux passages successifs portent normalement des valeurs identiques ; si
+    // elles divergent, la règle est « premier vu gagne », pas « dernier écrase ».
     const deadlines = deadlinesFromStudium(
       raw([quizEvent("close", edt(17, 23, 59)), quizEvent("close", edt(18, 23, 59), { id: 2 })]),
     );
@@ -345,6 +351,61 @@ describe("deadlinesFromStudium — identité et idempotence", () => {
       raw([quizEvent("close", edt(17, 23, 59), { url: undefined, activityname: "Quiz obligatoire-Thème 1" })]),
     );
     expect(deadline?.id).toBe("studium:366018:quiz-obligatoire-theme-1");
+  });
+
+  it("garde la fenêtre quand seul le « s'ouvre » porte une URL", () => {
+    // Défaut de couture (2026-09-10) : le regroupement suivait le cmid, donc
+    // une URL manquante d'un côté scindait l'activité en deux — l'ouverture
+    // partait comme orpheline et l'échéance sortait sans fenêtre, sans bruit.
+    const deadlines = deadlinesFromStudium(
+      raw([quizEvent("open", edt(14, 10, 30)), quizEvent("close", edt(17, 23, 59), { url: undefined })]),
+    );
+    expect(deadlines).toHaveLength(1);
+    expect(deadlines[0]?.id).toBe("studium:6624100");
+    expect(deadlines[0]?.start).toBe("2026-09-14T10:30");
+    expect(deadlines[0]?.due).toBe("2026-09-17T23:59");
+  });
+
+  it("garde le même id quand c'est le « se termine » qui porte l'URL", () => {
+    const deadlines = deadlinesFromStudium(
+      raw([quizEvent("open", edt(14, 10, 30), { url: undefined }), quizEvent("close", edt(17, 23, 59))]),
+    );
+    expect(deadlines).toHaveLength(1);
+    expect(deadlines[0]?.id).toBe("studium:6624100");
+    expect(deadlines[0]?.start).toBe("2026-09-14T10:30");
+  });
+
+  it("ne fusionne pas deux activités homonymes du même cours", () => {
+    // Moodle autorise deux activités de même nom dans un cours. Regrouper sur
+    // le seul couple site + nom les confondrait et en ferait DISPARAÎTRE une :
+    // deux cmids distincts restent deux échéances.
+    const deadlines = deadlinesFromStudium(
+      raw([
+        quizEvent("close", edt(17, 23, 59), { id: 1 }),
+        quizEvent("close", edt(24, 23, 59), {
+          id: 2,
+          url: "https://studium.umontreal.ca/mod/quiz/view.php?id=6624200",
+        }),
+      ]),
+    );
+    expect(deadlines.map((d) => d.id)).toEqual(["studium:6624100", "studium:6624200"]);
+  });
+
+  it("n'attribue pas un événement sans URL quand le nom est ambigu", () => {
+    // Deux cmids sous le même nom : impossible de savoir auquel rattacher une
+    // ouverture sans URL. On ne devine pas — elle reste orpheline et tombe.
+    const deadlines = deadlinesFromStudium(
+      raw([
+        quizEvent("close", edt(17, 23, 59), { id: 1 }),
+        quizEvent("close", edt(24, 23, 59), {
+          id: 2,
+          url: "https://studium.umontreal.ca/mod/quiz/view.php?id=6624200",
+        }),
+        quizEvent("open", edt(14, 10, 30), { id: 3, url: undefined }),
+      ]),
+    );
+    expect(deadlines.map((d) => d.id)).toEqual(["studium:6624100", "studium:6624200"]);
+    expect(deadlines.every((d) => d.start === undefined)).toBe(true);
   });
 
   it("ne confond pas l'id d'une URL de site avec un cmid", () => {
@@ -396,6 +457,47 @@ describe("deadlinesFromStudium — l'URL", () => {
   it("copie une URL de module telle quelle", () => {
     const [deadline] = deadlinesFromStudium(raw([quizEvent("close", edt(17, 23, 59))]));
     expect(deadline?.url).toBe("https://studium.umontreal.ca/mod/quiz/view.php?id=6624100");
+  });
+});
+
+describe("deadlinesFromStudium — le lieu", () => {
+  it("recopie le lieu quand Moodle en porte un", () => {
+    const [deadline] = deadlinesFromStudium(
+      raw([quizEvent("close", edt(17, 23, 59), { location: "Z-345 Pav. Claire-McNicoll" })]),
+    );
+    expect(deadline?.location).toBe("Z-345 Pav. Claire-McNicoll");
+  });
+
+  it("laisse le lieu absent plutôt que d'écrire une chaîne vide", () => {
+    // `location` vaut "" sur la quasi-totalité des événements : un quiz n'a pas
+    // de local. Le popup ne doit pas afficher « Lieu : » suivi de rien.
+    const [deadline] = deadlinesFromStudium(raw([quizEvent("close", edt(17, 23, 59), { location: "" })]));
+    expect(deadline?.location).toBeUndefined();
+    expect("location" in (deadline ?? {})).toBe(false);
+  });
+
+  it("laisse le lieu absent sur des espaces seuls ou une valeur non textuelle", () => {
+    const [blank] = deadlinesFromStudium(raw([quizEvent("close", edt(17, 23, 59), { location: "   " })]));
+    expect(blank?.location).toBeUndefined();
+    const [nulled] = deadlinesFromStudium(raw([quizEvent("close", edt(17, 23, 59), { location: null })]));
+    expect(nulled?.location).toBeUndefined();
+  });
+
+  it("rogne les espaces autour du lieu", () => {
+    const [deadline] = deadlinesFromStudium(
+      raw([quizEvent("close", edt(17, 23, 59), { location: "  En ligne  " })]),
+    );
+    expect(deadline?.location).toBe("En ligne");
+  });
+
+  it("prend le lieu du « se termine » plutôt que celui du « s'ouvre »", () => {
+    const [deadline] = deadlinesFromStudium(
+      raw([
+        quizEvent("open", edt(14, 10, 30), { location: "Salle d'ouverture" }),
+        quizEvent("close", edt(17, 23, 59), { location: "Salle de remise" }),
+      ]),
+    );
+    expect(deadline?.location).toBe("Salle de remise");
   });
 });
 
