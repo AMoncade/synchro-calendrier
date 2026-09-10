@@ -56,6 +56,42 @@
   cinq axes : identité des ids, fenêtre orpheline, provenance, fuseau, état antérieur) ;
   test de chaîne d'adrie-29 (branche `studium-pipeline` : enveloppe brute → flatten → parse →
   merge, plus `location`).
+- **Passe de couture d'adrie-f6** (`sweep`, e59a155 → 291f7ee, 13 cas figés) : cinq défauts.
+  (1) **Bloquant** : le service worker ne routait aucun des cinq messages de la phase 12 — mon
+  premier script d'édition du background faisait un `replace` sans vérifier l'ancre ;
+  l'import (une ligne) a matché, le bloc de `case` (multi-lignes, fichier en CRLF) non, sans
+  erreur. C'était exactement le symptôme rapporté par l'utilisateur (« j'ouvre StudiUM, rien
+  ne se passe »). Corrigé à d7c57e1 avec une garde d'exhaustivité (`never`) ; le témoin
+  `SCHEDULE_CAPTURED` de f6 est ce qui a rendu les cinq cas rouges probants. (2)+(3) l'id
+  et la clé de regroupement de `core/studium.ts` décidés par événement → id instable,
+  fenêtre perdue si l'URL manque sur un seul des deux événements. (4) `syncedAt` local nu
+  passé à `relativeTime` (ISO) → `toIso()` côté popup. (5) classe CSS `open` (statut) en
+  collision avec `open` (déplié) → `status-*`. Vérifié et propre par f6 : clés partagées,
+  état antérieur, provenance, fuseau ICS, UID insensible aux liaisons.
+- **Regroupement stable** (adrie-29, `studium-pipeline` 8622ebe, merge e992ede) : panier
+  `courseid + slug`, mais **deux cmids distincts restent deux activités** (contradiction
+  retenue : Moodle autorise deux « Quiz » homonymes dans un cours, ma règle en aurait fait
+  disparaître un en silence) ; un événement sans cmid ne rejoint que si le panier n'a qu'un
+  cmid ; id décidé sur le groupe. Aussi : `tests/studium-pipeline.test.ts` (enveloppe brute →
+  `readAjaxPayload`/`flattenMonthlyEvents`/`readCourses` → parseur → `mergeStudium`) et
+  `location` recopiée. Défaut rapporté par 29, à f6 : `allDeadlines` trie par
+  `localeCompare("fr")` alors que les autres modules comparent en brut. Résidu accepté :
+  une activité dont l'URL disparaît de tous ses événements change d'id (théorique).
+- Vérifié en direct (outil Chrome reconnecté, page « Mon StudiUM ») : le `sesskey` est bien
+  dans le lien de déconnexion et dans `M.cfg` inline. Pas de capture `monthly_view` réelle :
+  l'outil refuse un script qui met un sesskey en chaîne de requête ; elle viendra de la
+  première synchro de l'extension.
+- **Impeccable** (github.com/pbakaus/impeccable, demandé par l'utilisateur) installé en
+  portée projet : `.claude/skills/impeccable`, agents, hooks (`.claude/settings.local.json`).
+  Le moteur binaire (15 Mo) est ignoré par git ; il est entré par erreur dans e992ede avec
+  `tests/_harness.test.ts` (un `git add -A`), retirés à 221f5a6 — le blob reste dans
+  l'historique tant que main n'est pas réécrit (décision de l'utilisateur). Détecteur :
+  deux barres latérales de 3 px et un menu contour + ombre. Passe de polish (53286ad) sur un
+  gabarit de rendu (dist servi en local, `chrome.*` remplacé, état fixé) : onglets et titres
+  en casse de phrase, pastille + filets au lieu des barres, boutons secondaires tonals, menu
+  en élévation seule, panneaux sans contour accentué, sélection/défilement/focus thémés.
+  Police système gardée à dessein : une police distante contredirait « aucune transmission ».
+  Gate à 53286ad : 21 fichiers, 449 tests, build OK, zip 0.3.0 regénéré.
 - Reste à l'utilisateur : recharger `dist/` dans Chrome, ouvrir StudiUM connecté et vérifier
   la première synchro (sesskey trouvé ? format ?) ; captures Web Store des nouveaux écrans ;
   la liste des « bugs visuels v2 » de l'étape 1 n'a jamais été reçue.
