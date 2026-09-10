@@ -40,11 +40,21 @@ const MIN_INTERVAL_MS = 30 * 60 * 1000;
 const LAST_RUN_KEY = "synchro-calendrier.studium-last-run";
 
 /**
- * Message du popup qui force une synchronisation malgré l'anti-rafale.
- * Pas encore déclaré dans `Message` (src/lib/messages.ts appartient à
- * l'intégratrice) : l'ajout est proposé dans le rapport de fin.
+ * Message du popup qui force une synchronisation malgré l'anti-rafale, quand un
+ * onglet StudiUM est déjà ouvert. Déjà ajouté à `Message` sur `main` par
+ * l'intégratrice ; la constante reste locale tant que `src/lib/messages.ts`
+ * n'est pas sur cette branche.
  */
 const FORCE_SYNC = "STUDIUM_SYNC_NOW";
+
+/**
+ * Drapeau posé par le popup **avant** `chrome.tabs.create`, quand aucun onglet
+ * StudiUM n'est ouvert. Il ne peut pas nous envoyer FORCE_SYNC dans ce cas : la
+ * création d'un onglet actif donne le focus, ce qui détruit le document du
+ * popup et tout écouteur qu'il y aurait posé. On lit donc le drapeau au
+ * démarrage, sans course possible.
+ */
+const FORCE_NEXT_KEY = "synchro-calendrier.studium-force-next";
 
 // ---------------------------------------------------------------------------
 // Logique pure — testable sans DOM ni API chrome.
@@ -287,6 +297,19 @@ export interface SyncEnv {
   send(message: Message): void;
   readLastRun(): Promise<unknown>;
   writeLastRun(atMs: number): Promise<void>;
+  readForceNext(): Promise<unknown>;
+  clearForceNext(): Promise<void>;
+}
+
+/**
+ * Consomme le drapeau du popup : on le **retire d'abord**, on force ensuite.
+ * L'inverse ferait forcer à chaque visite si la synchronisation échoue — une
+ * session expirée relancerait six requêtes à chaque page StudiUM ouverte.
+ */
+export async function takeForceNext(env: SyncEnv): Promise<boolean> {
+  if ((await env.readForceNext()) !== true) return false;
+  await env.clearForceNext();
+  return true;
 }
 
 export function syncedMessage(
@@ -350,6 +373,8 @@ function browserEnv(): SyncEnv {
     },
     readLastRun: async () => (await chrome.storage.local.get(LAST_RUN_KEY))[LAST_RUN_KEY],
     writeLastRun: async (atMs) => chrome.storage.local.set({ [LAST_RUN_KEY]: atMs }),
+    readForceNext: async () => (await chrome.storage.local.get(FORCE_NEXT_KEY))[FORCE_NEXT_KEY],
+    clearForceNext: async () => chrome.storage.local.remove(FORCE_NEXT_KEY),
   };
 }
 
@@ -369,7 +394,12 @@ function main(): void {
     if ((message as { type?: unknown } | null)?.type === FORCE_SYNC) sync(true);
   });
 
-  sync(false);
+  // Le drapeau se lit avant la première synchronisation : sans lui, un onglet
+  // ouvert par « Synchroniser StudiUM » repartirait en mode normal et
+  // l'anti-rafale l'étoufferait. Storage indisponible → synchro normale.
+  void takeForceNext(env)
+    .catch(() => false)
+    .then(sync);
 }
 
 if (shouldRun(window)) main();

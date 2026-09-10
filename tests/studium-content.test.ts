@@ -23,6 +23,7 @@ import {
   readSesskey,
   runSync,
   shouldRun,
+  takeForceNext,
   timelineCoursesArgs,
   type StudiumFetch,
   type SyncEnv,
@@ -332,6 +333,8 @@ describe("runSync", () => {
       send: (message) => sent.push(message),
       readLastRun: async () => undefined,
       writeLastRun: async (atMs) => void runs.push(atMs),
+      readForceNext: async () => undefined,
+      clearForceNext: async () => {},
       ...overrides,
     };
     return { env, sent, runs };
@@ -413,5 +416,76 @@ describe("runSync", () => {
 
     expect(stub).toHaveBeenCalledTimes(6);
     expect(sent[0]?.type).toBe("STUDIUM_SYNCED");
+  });
+
+  describe("drapeau studium-force-next", () => {
+    /** Le popup meurt à `tabs.create` : il pose le drapeau au lieu d'envoyer un message. */
+    it("consomme le drapeau et retire la clé", async () => {
+      const cleared: string[] = [];
+      const { env } = envWith({
+        readForceNext: async () => true,
+        clearForceNext: async () => void cleared.push("clear"),
+      });
+
+      await expect(takeForceNext(env)).resolves.toBe(true);
+      expect(cleared).toEqual(["clear"]);
+    });
+
+    it("ne retire rien quand le drapeau est absent", async () => {
+      const cleared: string[] = [];
+      const { env } = envWith({
+        readForceNext: async () => undefined,
+        clearForceNext: async () => void cleared.push("clear"),
+      });
+
+      await expect(takeForceNext(env)).resolves.toBe(false);
+      expect(cleared).toEqual([]);
+    });
+
+    it("n'accepte que le booléen true, pas une valeur qui lui ressemble", async () => {
+      for (const value of ["true", 1, false, null, {}]) {
+        const { env } = envWith({ readForceNext: async () => value });
+        await expect(takeForceNext(env)).resolves.toBe(false);
+      }
+    });
+
+    it("retire la clé AVANT de synchroniser, et contourne l'anti-rafale", async () => {
+      const order: string[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string) => {
+          order.push("fetch");
+          return jsonResponse([
+            { error: false, data: url.includes(TIMELINE) ? { courses: [] } : monthlyView([]) },
+          ]);
+        }),
+      );
+      const recent = new Date(2026, 8, 10, 6, 50).getTime();
+      const { env, sent } = envWith({
+        readLastRun: async () => recent,
+        readForceNext: async () => true,
+        clearForceNext: async () => void order.push("clear"),
+      });
+
+      // Exactement l'enchaînement de `main()` : consommer, puis synchroniser.
+      await runSync(env, { force: await takeForceNext(env) });
+
+      expect(order[0]).toBe("clear");
+      expect(order.filter((step) => step === "fetch")).toHaveLength(6);
+      // Le tampon datait de 15 min : sans le drapeau, rien ne serait parti.
+      expect(sent[0]?.type).toBe("STUDIUM_SYNCED");
+    });
+
+    it("laisse l'anti-rafale étouffer la synchro quand le drapeau manque", async () => {
+      const stub = vi.fn();
+      vi.stubGlobal("fetch", stub);
+      const recent = new Date(2026, 8, 10, 6, 50).getTime();
+      const { env, sent } = envWith({ readLastRun: async () => recent });
+
+      await runSync(env, { force: await takeForceNext(env) });
+
+      expect(stub).not.toHaveBeenCalled();
+      expect(sent).toEqual([]);
+    });
   });
 });
