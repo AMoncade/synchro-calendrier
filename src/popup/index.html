@@ -15,6 +15,7 @@
       <button role="tab" id="tab-today" aria-controls="panel-today" aria-selected="true" data-tab="today">Aujourd'hui</button>
       <button role="tab" id="tab-week" aria-controls="panel-week" aria-selected="false" data-tab="week" tabindex="-1">Semaine</button>
       <button role="tab" id="tab-exams" aria-controls="panel-exams" aria-selected="false" data-tab="exams" tabindex="-1">Examens</button>
+      <button role="tab" id="tab-grades" aria-controls="panel-grades" aria-selected="false" data-tab="grades" tabindex="-1">Notes</button>
     </nav>
 
     <main id="main">
@@ -71,11 +72,7 @@
         </div>
       </section>
 
-      <section id="grades-panel" hidden>
-        <div class="head-row">
-          <h2>Notes</h2>
-          <button id="grades-close" class="ghost">Fermer</button>
-        </div>
+      <section id="panel-grades" role="tabpanel" aria-labelledby="tab-grades" hidden>
         <label class="optin"><input id="grades-optin" type="checkbox" /> Lire mes notes StudiUM (moyenne du groupe comprise)</label>
         <p class="dim">Option désactivée par défaut. Les notes restent sur cet ordinateur ; les désactiver les efface.</p>
         <p id="grades-status" class="dim"></p>
@@ -105,7 +102,6 @@
             <button role="menuitem" id="menu-deadline">Ajouter un événement</button>
             <button role="menuitem" id="menu-studium">Synchroniser StudiUM</button>
             <button role="menuitem" id="menu-links" hidden>Lier les sites StudiUM</button>
-            <button role="menuitem" id="menu-grades">Notes</button>
             <button role="menuitem" class="report">Signaler un bug</button>
             <button role="menuitem" id="menu-alarms">Rappels pour les cours : non</button>
             <button role="menuitem" id="clear" class="danger">Effacer les données</button>

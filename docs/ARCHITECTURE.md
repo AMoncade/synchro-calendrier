@@ -246,6 +246,6 @@ Demande de l'utilisateur après la première synchro réelle. Trois sessions en 
   `sesskey=`/`authtoken=`, le nom de l'étudiant. Les rapports sont remplacés en bloc à chaque
   lecture (`StoredState.grades`), effacés par « Effacer les données » et par la désactivation
   de l'opt-in.
-- **Affichage** : panneau « Notes » depuis le menu (pas un quatrième onglet : c'est une
-  consultation, pas une vue quotidienne), un bloc par cours (sigle Synchro si lié), lignes
+- **Affichage** : quatrième onglet « Notes » (d'abord un panneau de menu ; l'utilisateur a
+  demandé l'onglet le 2026-09-10 en voyant la barre), un bloc par cours (sigle Synchro si lié), lignes
   nom / note / sur / moyenne du groupe, total du cours en pied, date de lecture.

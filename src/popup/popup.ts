@@ -59,7 +59,7 @@ const PREVIEW_MAX = 4;
  */
 const PALETTE = ["#2f7de1", "#e0603c", "#2ba36b", "#c8449b", "#e6a417", "#7b5cd6", "#1fa8b9", "#8a6d3b"];
 
-type Tab = "today" | "week" | "exams";
+type Tab = "today" | "week" | "exams" | "grades";
 interface UiState {
   tab: Tab;
   openedAt: number;
@@ -346,7 +346,8 @@ function renderWeek(view: View, now: Now): void {
     const cls = date === now.date ? " today" : date < now.date ? " past" : "";
     const day = el("div", `day${cls}`);
     day.append(el("div", "dayname", `${weekdayName((i + 1) as 1, "long")} ${dayMonthShort(date)}`));
-    if (items.length === 0) day.append(el("div", "holiday", dayOffLabel(view, date) ?? "Aucun cours"));
+    if (items.length === 0 && dayDeadlines.length === 0) day.append(el("div", "holiday", dayOffLabel(view, date) ?? "Aucun cours"));
+    else if (items.length === 0) { const off = dayOffLabel(view, date); if (off) day.append(el("div", "holiday", off)); }
     for (const o of items) {
       const key = `${o.date}|${o.start}|${o.label}`;
       const open = ui.expanded === key;
@@ -628,16 +629,17 @@ function selectTab(tab: Tab, focus = false): void {
   $("panel-today").hidden = tab !== "today";
   $("panel-week").hidden = tab !== "week";
   $("panel-exams").hidden = tab !== "exams";
+  $("panel-grades").hidden = tab !== "grades";
   $("paste-panel").hidden = true;
   $("deadline-panel").hidden = true;
   $("link-panel").hidden = true;
-  $("grades-panel").hidden = true;
+  if (tab === "grades" && currentView) void renderGrades(currentView);
   // Revenir sur Aujourd'hui après un moment ailleurs : recalculer « dans X min ».
   if (tab === "today" && currentView) renderToday(currentView, localNow());
 }
 
 function wireTabs(): void {
-  const order: Tab[] = ["today", "week", "exams"];
+  const order: Tab[] = ["today", "week", "exams", "grades"];
   for (const btn of document.querySelectorAll<HTMLButtonElement>("#tabs [role=tab]")) {
     btn.addEventListener("click", () => selectTab(btn.dataset["tab"] as Tab));
     btn.addEventListener("keydown", (ev) => {
@@ -665,19 +667,14 @@ function wireMenu(): void {
     if (ev.key === "Escape") close();
   });
   $("menu-paste").addEventListener("click", () => {
-    for (const p of ["panel-today", "panel-week", "panel-exams", "deadline-panel", "link-panel", "grades-panel"]) $(p).hidden = true;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "panel-grades", "deadline-panel", "link-panel"]) $(p).hidden = true;
     $("paste-panel").hidden = false;
     $<HTMLTextAreaElement>("paste-2").focus();
   });
   $("paste-cancel").addEventListener("click", () => selectTab(ui.tab));
   const showPanel = (id: string) => {
-    for (const p of ["panel-today", "panel-week", "panel-exams", "paste-panel", "deadline-panel", "link-panel", "grades-panel"]) $(p).hidden = p !== id;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "panel-grades", "paste-panel", "deadline-panel", "link-panel"]) $(p).hidden = p !== id;
   };
-  $("menu-grades").addEventListener("click", () => {
-    if (currentView) void renderGrades(currentView);
-    showPanel("grades-panel");
-  });
-  $("grades-close").addEventListener("click", () => selectTab(ui.tab));
   $("grades-optin").addEventListener("change", () => void setGradesOptIn($<HTMLInputElement>("grades-optin").checked));
   $("menu-deadline").addEventListener("click", () => {
     showPanel("deadline-panel");
@@ -985,7 +982,7 @@ function render(state: StoredState): void {
   if (!schedule) {
     $("term").textContent = "";
     currentView = null;
-    for (const p of ["panel-today", "panel-week", "panel-exams", "paste-panel", "deadline-panel", "link-panel", "grades-panel"]) $(p).hidden = true;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "panel-grades", "paste-panel", "deadline-panel", "link-panel"]) $(p).hidden = true;
     return;
   }
 
