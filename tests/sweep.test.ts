@@ -7,12 +7,13 @@
 // aujourd'hui et dit en commentaire ce qu'il devrait faire. Quand le défaut est
 // corrigé, le test DOIT casser — c'est ce qui force à le basculer.
 //
-// État au 2026-09-10, après d7c57e1 : le routage des messages (axe 5) est réparé
-// et ses cas sont devenus des non-régressions ; l'écart de format d'instant
-// (axe 4) est compensé chez son consommateur et reste noté comme piège. Les
-// « DÉFAUT CONNU » restants (axes 1 et 2, identité des ids et fenêtre
-// open/close) sont confiés à la branche `studium-pipeline` ; ils basculeront à
-// son merge.
+// État au 2026-09-10, après e992ede — les quatre axes du premier passage :
+//   axe 5, routage des messages : réparé (d7c57e1), cas devenus non-régressions ;
+//   axe 4, format d'instant     : compensé chez le consommateur, gardé en PIÈGE ;
+//   axe 2, fenêtre open/close   : réparé (8622ebe, panier courseid + slug) ;
+//   axe 1, identité des ids     : réduit à un RÉSIDU ACCEPTÉ, gardé pour dire
+//                                 ce qui casserait si l'hypothèse tombait.
+// Le second passage, en fin de fichier, n'examine que ce que 8622ebe a changé.
 //
 // Aucun test ne dépend de l'heure réelle ni du fuseau de la machine.
 
@@ -79,8 +80,22 @@ describe("identité des ids d'une synchro à l'autre", () => {
     expect(d?.start).toBeDefined(); // recollés par la clé de repli
   });
 
-  it("DÉFAUT CONNU — une URL qui apparaît d'une synchro à l'autre change l'id, et l'échéance masquée revient", () => {
-    // Synchro 1 : Moodle ne donne pas l'URL. L'étudiant retire l'échéance.
+  // RÉSIDU ACCEPTÉ (2026-09-10, adrie-29 et adrie-aa, après le regroupement 8622ebe).
+  //
+  // Le regroupement par `courseid + slug` a fermé le cas où UN SEUL des deux
+  // événements porte l'URL : le panier est le même, le cmid est choisi sur le
+  // groupe. Reste le cas où l'URL manque sur TOUS les événements d'une activité à
+  // une synchro et revient à la suivante — là, l'id bascule pour de bon.
+  //
+  // Accepté parce que le cas est théorique : d'après adrie-29, l'exporteur Moodle
+  // `calendar_event_exporter` rend toujours `url` (relayé, non vérifié dans le
+  // source Moodle). Vérifié ici, en revanche, sur la capture réelle
+  // `tests/fixtures/studium-monthly-2026-09-brut.json` : les 5 événements porteurs
+  // d'échéance ont tous une URL `/mod/<type>/view.php?id=<cmid>`, aucun n'en manque.
+  //
+  // Les deux cas restent pour dire ce qui casserait si l'hypothèse tombait.
+  it("RÉSIDU ACCEPTÉ — une URL absente de TOUS les événements puis présente change l'id, et l'échéance masquée revient", () => {
+    // Synchro 1 : Moodle ne donne l'URL sur aucun des deux. L'étudiant retire l'échéance.
     const [sansUrl] = deadlinesFromStudium(quizEvents({ openUrl: false, closeUrl: false }));
     const masque = removeDeadline(mergeStudium(stateWith([]), [sansUrl!], [], "2026-09-10T10:00"), sansUrl!.id);
     expect(masque.hiddenDeadlines).toEqual(["studium:4242:quiz-tp3"]);
@@ -89,20 +104,20 @@ describe("identité des ids d'une synchro à l'autre", () => {
     const [avecUrl] = deadlinesFromStudium(quizEvents({ openUrl: true, closeUrl: true }));
     const apres = mergeStudium(masque, [avecUrl!], [], "2026-09-11T10:00");
 
-    // ATTENDU APRÈS CORRECTION : toujours masquée (aucune échéance).
-    // ACTUEL : elle revient, parce que `studium:6624079` ≠ `studium:4242:quiz-tp3`.
+    // `studium:6624079` ≠ `studium:4242:quiz-tp3` : le masquage ne reconnaît plus l'échéance.
     expect(allDeadlines(apres)).toHaveLength(1);
     expect(allDeadlines(apres)[0]?.id).toBe("studium:6624079");
     expect(masque.hiddenDeadlines).not.toContain("studium:6624079");
   });
 
-  it("DÉFAUT CONNU — le même changement d'id produit un doublon dans l'agenda de l'étudiant", () => {
+  it("RÉSIDU ACCEPTÉ — le même changement d'id produirait un doublon dans l'agenda de l'étudiant", () => {
     const [sansUrl] = deadlinesFromStudium(quizEvents({ openUrl: false, closeUrl: false }));
     const [avecUrl] = deadlinesFromStudium(quizEvents({ openUrl: true, closeUrl: true }));
 
     // `deadlineUid` dérive de `deadline.id` : deux ids = deux VEVENT. Un client
-    // iCalendar qui réimporte voit un ajout, pas une mise à jour.
-    // ATTENDU APRÈS CORRECTION : même UID pour la même activité.
+    // iCalendar qui réimporte voit un ajout, pas une mise à jour. C'est la
+    // conséquence la plus visible du résidu, et celle qu'aucun des deux modules
+    // ne peut voir seul.
     expect(deadlineUid("A26", sansUrl!)).not.toBe(deadlineUid("A26", avecUrl!));
     expect(deadlineUid("A26", avecUrl!)).toContain("studium-6624079");
     expect(deadlineUid("A26", sansUrl!)).toContain("studium-4242-quiz-tp3");
@@ -117,14 +132,16 @@ describe("fenêtre open/close", () => {
   // Corrigé le 2026-09-10 par adrie-29 (studium-pipeline 8622ebe) : panier courseid + slug,
   // cmid décidé sur le groupe. Les deux cas ci-dessous étaient « DÉFAUT CONNU ».
   it("une URL sur un seul des deux événements ne sépare plus le couple : fenêtre conservée", () => {
-    // `prepareEvent` calcule la clé de regroupement à partir du cmid *de chaque
-    // événement*. Si « s'ouvre » porte l'URL et « se termine » non, les deux
-    // partent dans deux groupes : l'open devient orphelin (jeté), le close donne
-    // une échéance sans `start`.
+    // Jusqu'à 8622ebe, `prepareEvent` calculait la clé de regroupement à partir du
+    // cmid *de chaque événement* : « s'ouvre » avec URL et « se termine » sans
+    // partaient dans deux paniers, l'open devenait orphelin (jeté) et le close
+    // donnait une échéance sans `start` — fenêtre perdue en silence.
+    //
+    // Depuis : panier par `courseid + slug`, toujours ; le cmid ne sert qu'à
+    // fabriquer l'id une fois le groupe formé. C'est le correctif que le rapport
+    // de couture proposait, et il ferme les deux sens.
     const deadlines = deadlinesFromStudium(quizEvents({ openUrl: true, closeUrl: false }));
 
-    // ATTENDU APRÈS CORRECTION : une échéance avec `start` (le couple recollé
-    // par site + nom quand un des deux n'a pas de cmid).
     expect(deadlines).toHaveLength(1);
     expect(deadlines[0]?.id).toBe("studium:6624079"); // le cmid du membre qui en a un
     expect(deadlines[0]?.start).toBeDefined();
@@ -263,4 +280,89 @@ describe("service worker : routage des messages de la phase 12", () => {
       expect(writes).toBe(1);
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Second passage (2026-09-10, après 8622ebe) : ce que le nouveau regroupement
+// d'adrie-29 change à la jointure avec `removeDeadline` et `deadlineUid`.
+// Le test de chaîne `tests/studium-pipeline.test.ts` couvre déjà la chaîne
+// nominale ; on ne regarde ici que les cas qu'il ne prend pas.
+// ---------------------------------------------------------------------------
+
+const SITE = { id: 4242, shortname: "MAT1400-AB-A26", fullname: "Calcul 1" };
+const QUIZ = { modulename: "quiz", activityname: "Quiz-tp3", timeduration: 0, course: SITE };
+const modUrl = (cmid: number) => `https://studium.umontreal.ca/mod/quiz/view.php?id=${cmid}`;
+const capture = (events: RawStudiumCapture["events"]): RawStudiumCapture => ({
+  months: ["2026-09"],
+  events,
+  courses: [SITE],
+});
+
+describe("regroupement par panier : homonymes dans un même site", () => {
+  // Le panier est `courseid + slug`. Un événement sans cmid ne rejoint le cmid du
+  // panier que si ce panier n'en contient qu'un seul — choix d'adrie-29, pour ne
+  // pas fusionner deux activités homonymes distinctes (Moodle les autorise).
+  const ouvertureSansUrl = { id: 2, name: "Quiz-tp3 s'ouvre", eventtype: "open", timestart: 1_757_500_000, ...QUIZ };
+  const fermeture111 = { id: 1, name: "Quiz-tp3 se termine", eventtype: "close", timestart: 1_757_900_000, ...QUIZ, url: modUrl(111) };
+  const fermeture222 = { id: 3, name: "Quiz-tp3 se termine", eventtype: "close", timestart: 1_758_900_000, ...QUIZ, url: modUrl(222) };
+
+  it("un seul cmid dans le panier : l'ouverture sans URL le rejoint et la fenêtre tient", () => {
+    const deadlines = deadlinesFromStudium(capture([fermeture111, ouvertureSansUrl]));
+
+    expect(deadlines).toHaveLength(1);
+    expect(deadlines[0]?.id).toBe("studium:111");
+    expect(deadlines[0]?.start).toBeDefined();
+  });
+
+  it("DÉFAUT CONNU — l'arrivée d'un homonyme retire sa fenêtre à l'échéance qui l'avait", () => {
+    // Même panier, deux cmids : `lone` devient indéfini, l'ouverture sans URL ne
+    // rejoint plus personne et redevient un `open` orphelin — donc jetée. L'id de
+    // l'échéance existante ne bouge pas (c'est l'acquis de 8622ebe), mais son
+    // `start` disparaît d'une synchronisation à l'autre, sans bruit.
+    //
+    // ATTENDU APRÈS CORRECTION : `studium:111` garde `start`. Rattacher une
+    // ouverture sans cmid au cmid le plus proche dans le temps (le seul dont la
+    // fermeture suit l'ouverture) suffirait ; c'est une décision pour adrie-29.
+    const avant = deadlinesFromStudium(capture([fermeture111, ouvertureSansUrl]));
+    const apres = deadlinesFromStudium(capture([fermeture111, ouvertureSansUrl, fermeture222]));
+
+    expect(avant[0]?.start).toBeDefined();
+    expect(apres).toHaveLength(2);
+    expect(apres.map((d) => d.id)).toEqual(["studium:111", "studium:222"]);
+    expect(apres[0]?.start).toBeUndefined(); // fenêtre perdue
+    expect(apres[1]?.start).toBeUndefined();
+  });
+
+  it("l'id reste stable malgré l'homonyme : le masquage tient toujours", () => {
+    // L'acquis de 8622ebe, et la raison pour laquelle le cas ci-dessus est un
+    // défaut mineur : ce qui casse est la fenêtre, plus l'identité.
+    const [existante] = deadlinesFromStudium(capture([fermeture111, ouvertureSansUrl]));
+    const masque = removeDeadline(mergeStudium(stateWith([]), [existante!], [], "2026-09-10T10:00"), existante!.id);
+
+    const apres = mergeStudium(masque, deadlinesFromStudium(capture([fermeture111, ouvertureSansUrl, fermeture222])), [], "2026-09-11T10:00");
+
+    expect(allDeadlines(apres).map((d) => d.id)).toEqual(["studium:222"]);
+    expect(deadlineUid("A26", existante!)).toContain("studium-111");
+  });
+});
+
+describe("aller-retour entre l'instant écrit et l'instant relu", () => {
+  it("`localNow` et le `toIso` du popup sont exactement inverses", () => {
+    // `content/studium.ts:localNow` écrit l'instant avec `getFullYear/getHours…`,
+    // donc en heure **de la machine** ; `popup.ts:toIso` le relit avec
+    // `new Date(y, m, j, h, min)`, qui lit en heure de la machine aussi. Le
+    // couple est donc juste quel que soit le fuseau de la machine — c'est ce qui
+    // ferme le défaut 4 du premier passage, et ce test le fige.
+    const instant = new Date(2026, 8, 10, 7, 5);
+    const ecrit = studiumLocalNow(instant);
+    const relu = new Date(
+      Number(ecrit.slice(0, 4)),
+      Number(ecrit.slice(5, 7)) - 1,
+      Number(ecrit.slice(8, 10)),
+      Number(ecrit.slice(11, 13)),
+      Number(ecrit.slice(14, 16)),
+    );
+
+    expect(relu.getTime()).toBe(new Date(2026, 8, 10, 7, 5).getTime());
+  });
 });
