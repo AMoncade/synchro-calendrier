@@ -120,3 +120,81 @@ export interface RawCapture {
   termLabel: string;
   blocks: RawCourseBlock[];
 }
+
+// ---------------------------------------------------------------------------
+// Échéances (phase 12, 2026-09-10) : quiz et devoirs StudiUM, événements ajoutés
+// à la main. Distinctes des séances (récurrentes) et des examens (Synchro) :
+// une échéance est un instant qui compte, avec une fenêtre optionnelle avant.
+// Voir docs/ARCHITECTURE.md §7.
+// ---------------------------------------------------------------------------
+
+export type DeadlineSource = "studium" | "manuel";
+
+export type DeadlineKind = "quiz" | "devoir" | "evenement" | "autre";
+
+/** Instant local "AAAA-MM-JJTHH:MM" (America/Toronto), sans secondes ni fuseau. */
+export type LocalDateTime = string;
+
+export interface Deadline {
+  /**
+   * Identifiant stable d'une synchronisation à l'autre. StudiUM :
+   * `studium:<cmid>` (id du module dans l'URL `view.php?id=`), sinon
+   * `studium:<courseid>:<nom d'activité normalisé>`. Manuel : `manuel:<uuid>`.
+   */
+  id: string;
+  source: DeadlineSource;
+  /** Sigle Synchro déduit ("MAT1400") ; absent si non lié. Le popup peut le surcharger via `courseLinks`. */
+  courseCode?: string;
+  /** Id du site StudiUM d'origine (`courseid` Moodle), pour l'écran de liaison. */
+  studiumCourseId?: number;
+  /** Nom affiché : "Quiz-tp3", "Devoir 1", "Rendez-vous TGDE". */
+  title: string;
+  kind: DeadlineKind;
+  /** Début de la fenêtre (quiz « s'ouvre ») ou début d'un événement manuel. */
+  start?: LocalDateTime;
+  /** L'instant qui compte : fermeture du quiz, remise, fin de l'événement. */
+  due: LocalDateTime;
+  location?: string;
+  /** Lien direct vers l'activité (StudiUM) ; jamais de jeton dedans. */
+  url?: string;
+  note?: string;
+}
+
+/** Un site de cours StudiUM tel que vu lors de la dernière synchronisation. */
+export interface StudiumCourse {
+  id: number;
+  /** "MAT1400-AB-A26" — clé de jointure ; `idnumber` est vide sur les sites -AB. */
+  shortname: string;
+  fullname: string;
+  /** Sigle déduit du shortname ("MAT1400"), ou absent si le motif ne colle pas. */
+  courseCode?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Capture brute StudiUM : ce que content/studium.ts tire de l'API AJAX de
+// Moodle (`/lib/ajax/service.php`, méthode core_calendar_get_calendar_monthly_view)
+// avant tout parsing. Champs tels que renvoyés par Moodle 4.x ; tout ce qui
+// n'est pas listé est ignoré. Les instants `timestart` sont des secondes Unix.
+// ---------------------------------------------------------------------------
+
+export interface RawMoodleEvent {
+  id: number;
+  name: string; // "Quiz-tp3 s'ouvre"
+  description?: string;
+  eventtype: string; // "open" | "close" | "due" | "user" | "course" | …
+  timestart: number; // secondes Unix
+  timeduration: number; // 0 pour les quiz
+  modulename?: string | null; // "quiz", "assign", …
+  component?: string | null;
+  activityname?: string | null; // "Quiz-tp3"
+  url?: string; // "https://studium.umontreal.ca/mod/quiz/view.php?id=6624079"
+  course?: { id: number; shortname: string; fullname: string; idnumber?: string } | null;
+}
+
+export interface RawStudiumCapture {
+  /** Mois interrogés, "AAAA-MM", dans l'ordre. */
+  months: string[];
+  events: RawMoodleEvent[];
+  /** Sites vus dans les événements ou par core_course_get_enrolled_courses_by_timeline_classification. */
+  courses: Array<{ id: number; shortname: string; fullname: string; idnumber?: string }>;
+}

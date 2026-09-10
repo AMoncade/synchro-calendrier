@@ -78,6 +78,18 @@ Historique (2026-09-09, sessions parallèles) : `calendar-udem.ts` par la sessio
 écrits par la session `ics-generator` puis repris par l'intégratrice ; tout le reste par
 l'intégratrice. Depuis l'assemblage, **une seule session à la fois** sur `main`.
 
+Phase 12 (2026-09-10, trois sessions en worktrees, intégratrice `adrie-aa`) :
+
+| Fichier | Propriétaire | Branche |
+|---|---|---|
+| `src/core/deadlines.ts`, `tests/deadlines.test.ts` | session **deadlines** | `deadlines` |
+| `src/core/studium.ts`, `tests/studium.test.ts`, `tests/fixtures/studium-*.json` | session **studium-parse** | `studium-parse` |
+| `src/content/studium.ts`, `tests/studium-content.test.ts` | session **studium-sync** | `studium-sync` |
+| `src/core/model.ts`, `src/lib/messages.ts`, `src/background/index.ts`, `manifest.json`, `src/popup/*`, `docs/*` | intégratrice | `main` |
+
+Un patch sur un fichier de l'intégratrice (manifest, background, messages) se **propose dans
+le rapport de fin**, il ne se commite pas sur la branche.
+
 ## 5. Ce qui a été observé sur Synchro
 
 - 2026-09-09 : hôte `academique-dmz.synchro.umontreal.ca`, chemin PeopleSoft
@@ -132,3 +144,59 @@ l'intégratrice. Depuis l'assemblage, **une seule session à la fois** sur `main
 6. Publication (icônes, captures, politique de confidentialité, Web Store), port Firefox.
 
 Hors portée v1 : synchronisation Google Calendar par OAuth, Safari.
+
+## 7. Échéances (phase 12, 2026-09-10)
+
+Source : `docs/REPERAGE-STUDIUM-2026-09-10.md` (lu en direct sur la session StudiUM de
+l'utilisateur). Décisions :
+
+- **StudiUM est un complément, pas une deuxième source d'échéances.** Les intras et finaux
+  restent ceux de Synchro. StudiUM apporte les quiz et devoirs (50 événements sur A26, tous
+  des quiz, deux sites -AB) ; les autres sites n'ont aucune activité évaluée.
+- **Voie principale : l'API AJAX interne de Moodle** (`/lib/ajax/service.php?sesskey=…&info=…`,
+  méthodes `core_calendar_get_calendar_monthly_view` et
+  `core_course_get_enrolled_courses_by_timeline_classification`), appelée par un content script
+  sur `studium.umontreal.ca` avec le cookie de session. Aucun jeton stocké. L'export ICS
+  (jeton permanent `authtoken`) reste un plan B non implémenté ; s'il l'est un jour, le jeton
+  va dans `chrome.storage.local` seulement, jamais `sync`, et jamais dans un export.
+- **`sesskey`** : lu dans le DOM de la page StudiUM visitée (inline `M.cfg` ou lien de
+  déconnexion `?sesskey=`), par le content script, à chaque visite. Pas d'onglet caché, pas de
+  fetch depuis le service worker. Si absent ou expiré (réponse Moodle `invalidsesskey`), le
+  content script envoie `STUDIUM_FAILED` et le popup affiche « Ouvre StudiUM une fois pour
+  synchroniser ».
+- **`open` + `close` = une échéance**, fusionnée par `courseid + activityname` (ou par le
+  `cmid` de l'URL). `close` orphelin → échéance sans `start` (quiz toujours ouvert) ; `open`
+  orphelin → ignoré. Les autres `eventtype` (`due` des devoirs, `user`, `course`) : `due` →
+  `kind: "devoir"`, le reste ignoré.
+- **Liaison StudiUM → Synchro par le sigle seul**, tiré du `shortname` :
+  `^([A-Z]{3}d{4})-([A-Z0-9]+)-([AHE]d{2})$`. La section StudiUM (-AB = site de TP) n'a pas
+  d'équivalent Synchro. Le popup a un écran de liaison (sites à gauche, sigles Synchro à
+  droite, pré-rempli) dont les choix vont dans `StoredState.courseLinks` et priment sur la
+  déduction.
+- **Un `Deadline` est un instant local** `"AAAA-MM-JJTHH:MM"` ; la conversion depuis
+  `timestart` (secondes Unix) se fait en America/Toronto dans `core/studium.ts` avec
+  `Intl.DateTimeFormat`, pas avec `toISOString()`.
+- **Événements manuels** : mêmes `Deadline`, `source: "manuel"`, `id: manuel:<uuid>` (uuid
+  fourni par l'appelant, `core/` reste pur). Créés dans le popup, validés par
+  `core/deadlines.ts`.
+- **Dans l'interface**, chaque échéance affiche sa provenance (`StudiUM` / `Ajouté à la main`)
+  pour qu'une donnée manquante se comprenne. Les notes (carnet StudiUM) sont **hors périmètre**
+  jusqu'à la v3 : données sensibles, révision Web Store plus lourde, opt-in séparé.
+
+Flux :
+
+```
+Content script (host studium.umontreal.ca) — content/studium.ts
+  └─ sesskey depuis le DOM ; fetch mois courant + 4 suivants (monthly_view), sites (timeline)
+  └─ core/studium.ts : RawStudiumCapture → { deadlines: Deadline[], courses: StudiumCourse[] }
+        └─ "STUDIUM_SYNCED" → service worker   (ou "STUDIUM_FAILED")
+Service worker
+  └─ core/deadlines.ts : mergeStudium (remplace les `studium:*`, garde les manuelles,
+     respecte hiddenDeadlines), upsert/remove manuel, courseLinks → chrome.storage.local
+Popup
+  └─ core/deadlines.ts : resolveCourseCode, upcoming, byDay → sections « Échéances » dans
+     Aujourd'hui et Semaine, onglet Examens inchangé ; formulaire manuel ; écran de liaison.
+```
+
+Permission ajoutée : `host_permissions` + `content_scripts` sur `https://studium.umontreal.ca/*`
+(déclaration Web Store et `docs/PRIVACY.md` à aligner).
