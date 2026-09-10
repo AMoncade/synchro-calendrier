@@ -168,6 +168,15 @@ l'utilisateur). Décisions :
   `cmid` de l'URL). `close` orphelin → échéance sans `start` (quiz toujours ouvert) ; `open`
   orphelin → ignoré. Les autres `eventtype` (`due` des devoirs, `user`, `course`) : `due` →
   `kind: "devoir"`, le reste ignoré.
+- **Le parseur est idempotent** (même événement deux fois → une échéance, premier vu gagne),
+  parce que la même échéance revient d'une synchronisation à l'autre et reviendrait d'une
+  méthode d'API à l'autre (`upcoming_view` vs `monthly_view`). Ce n'est PAS parce que deux
+  vues mensuelles se recouvrent : vérifié par adrie-29 dans `week_exporter` (MOODLE_404),
+  `prepadding`/`postpadding` sont des cases vides sans événement, les mois sont disjoints.
+  Question ouverte (2026-09-10) : un événement à `timeduration > 0` est-il rattaché à chaque
+  jour couvert (`calendar/lib.php`, `calendar_get_events_by_day`) ? Sans effet sur A26
+  (50 événements, tous à durée nulle) ; si oui, c'est le dédoublonnage par `id` de
+  `content/studium.ts` qui absorbe.
 - **Liaison StudiUM → Synchro par le sigle seul**, tiré du `shortname` :
   `^([A-Z]{3}d{4})-([A-Z0-9]+)-([AHE]d{2})$`. La section StudiUM (-AB = site de TP) n'a pas
   d'équivalent Synchro. Le popup a un écran de liaison (sites à gauche, sigles Synchro à
