@@ -39,6 +39,8 @@ const SYNCHRO_URL = "https://academique-dmz.synchro.umontreal.ca/";
 const REPORT_URL = "https://github.com/AMoncade/synchro-calendrier/issues/new";
 const CAMPUS_MAP_URL = "https://plancampus.umontreal.ca/montreal/";
 const STUDIUM_URL = "https://studium.umontreal.ca/my/";
+/** Lu par content/studium.ts au démarrage : force la synchro malgré l'anti-rafale (contrat adrie-07, 2026-09-10). */
+const STUDIUM_FORCE_KEY = "synchro-calendrier.studium-force-next";
 /** Échéances annoncées sous Aujourd'hui : les N prochains jours. */
 const DEADLINE_HORIZON_DAYS = 7;
 const UI_KEY = "synchro-calendrier.ui";
@@ -805,7 +807,10 @@ function renderLinks(view: View): void {
 
 /**
  * Un onglet StudiUM est ouvert → on lui demande une synchro immédiate (le content
- * script écoute STUDIUM_SYNC_NOW) ; sinon on ouvre StudiUM, et la visite synchronise.
+ * script écoute STUDIUM_SYNC_NOW). Sinon on pose un drapeau puis on ouvre StudiUM :
+ * le popup se ferme dès que le nouvel onglet prend le focus, donc aucun message
+ * différé ne partirait d'ici ; le content script lit le drapeau au démarrage et
+ * force la synchro malgré l'anti-rafale.
  */
 async function syncStudium(): Promise<void> {
   const tabs = await chrome.tabs.query({ url: "https://studium.umontreal.ca/*" }).catch(() => [] as chrome.tabs.Tab[]);
@@ -816,6 +821,7 @@ async function syncStudium(): Promise<void> {
     $("studium-status").textContent = "StudiUM : synchronisation demandée, rouvrez le popup dans quelques secondes.";
     return;
   }
+  await chrome.storage.local.set({ [STUDIUM_FORCE_KEY]: true }).catch(() => undefined);
   void chrome.tabs.create({ url: STUDIUM_URL });
 }
 
