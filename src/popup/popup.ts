@@ -823,13 +823,24 @@ function renderLinks(view: View): void {
 async function syncStudium(): Promise<void> {
   const tabs = await chrome.tabs.query({ url: "https://studium.umontreal.ca/*" }).catch(() => [] as chrome.tabs.Tab[]);
   const target = tabs.find((t) => t.id !== undefined);
+  // Le drapeau est posé dans tous les cas : si l'onglet doit être (re)chargé, le content
+  // script le lira au démarrage ; sinon le prochain démarrage le consommera sans mal.
+  await chrome.storage.local.set({ [STUDIUM_FORCE_KEY]: true }).catch(() => undefined);
   if (target?.id !== undefined) {
+    const tabId = target.id;
     const message: Message = { type: "STUDIUM_SYNC_NOW" };
-    await chrome.tabs.sendMessage(target.id, message).catch(() => undefined);
-    $("studium-status").textContent = "StudiUM : synchronisation demandée, rouvrez le popup dans quelques secondes.";
+    try {
+      await chrome.tabs.sendMessage(tabId, message);
+      $("studium-status").textContent = "StudiUM : synchronisation demandée, rouvrez le popup dans quelques secondes.";
+    } catch {
+      // Personne n'écoute dans cet onglet : content script orphelin après un rechargement
+      // de l'extension (vu le 2026-09-10), ou page ouverte avant l'installation. On
+      // recharge l'onglet : le script réinjecté lit le drapeau et force la synchro.
+      await chrome.tabs.reload(tabId).catch(() => undefined);
+      $("studium-status").textContent = "StudiUM : onglet rechargé pour synchroniser, rouvrez le popup dans quelques secondes.";
+    }
     return;
   }
-  await chrome.storage.local.set({ [STUDIUM_FORCE_KEY]: true }).catch(() => undefined);
   void chrome.tabs.create({ url: STUDIUM_URL });
 }
 
