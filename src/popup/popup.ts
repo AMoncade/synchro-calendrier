@@ -653,7 +653,7 @@ function wireMenu(): void {
   $("dl-title").addEventListener("keydown", (ev) => {
     if (ev.key === "Enter") void saveManualDeadline();
   });
-  $("menu-studium").addEventListener("click", () => void chrome.tabs.create({ url: STUDIUM_URL }));
+  $("menu-studium").addEventListener("click", () => void syncStudium());
   $("menu-links").addEventListener("click", () => {
     if (currentView) renderLinks(currentView);
     showPanel("link-panel");
@@ -801,6 +801,22 @@ function renderLinks(view: View): void {
     row.append(name, select);
     rows.append(row);
   }
+}
+
+/**
+ * Un onglet StudiUM est ouvert → on lui demande une synchro immédiate (le content
+ * script écoute STUDIUM_SYNC_NOW) ; sinon on ouvre StudiUM, et la visite synchronise.
+ */
+async function syncStudium(): Promise<void> {
+  const tabs = await chrome.tabs.query({ url: "https://studium.umontreal.ca/*" }).catch(() => [] as chrome.tabs.Tab[]);
+  const target = tabs.find((t) => t.id !== undefined);
+  if (target?.id !== undefined) {
+    const message: Message = { type: "STUDIUM_SYNC_NOW" };
+    await chrome.tabs.sendMessage(target.id, message).catch(() => undefined);
+    $("studium-status").textContent = "StudiUM : synchronisation demandée, rouvrez le popup dans quelques secondes.";
+    return;
+  }
+  void chrome.tabs.create({ url: STUDIUM_URL });
 }
 
 /** Ligne d'état StudiUM sous « Mis à jour … ». */

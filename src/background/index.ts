@@ -54,7 +54,9 @@ async function handle(message: Message): Promise<unknown> {
     case "GET_STATE":
       return loadState();
     case "CLEAR_ALL": {
-      await chrome.storage.local.remove(STORAGE_KEY);
+      // Le tampon anti-rafale du content script StudiUM part aussi : « Effacer » doit
+      // permettre une resynchronisation immédiate à la prochaine visite.
+      await chrome.storage.local.remove([STORAGE_KEY, "synchro-calendrier.studium-last-run"]);
       await chrome.action.setBadgeText({ text: "" });
       return { ok: true };
     }

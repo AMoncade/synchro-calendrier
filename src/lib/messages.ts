@@ -19,7 +19,9 @@ export type Message =
   /** popup → service worker : retirer une échéance (manuelle, ou masquer une StudiUM). */
   | { type: "DEADLINE_REMOVE"; id: string }
   /** popup → service worker : lier un site StudiUM à un sigle Synchro (`null` = ne pas lier). */
-  | { type: "COURSE_LINK_SET"; studiumCourseId: number; courseCode: string | null };
+  | { type: "COURSE_LINK_SET"; studiumCourseId: number; courseCode: string | null }
+  /** popup → content/studium.ts (via chrome.tabs.sendMessage) : forcer une synchronisation malgré l'anti-rafale. */
+  | { type: "STUDIUM_SYNC_NOW" };
 
 export interface StudiumStatus {
   lastSyncAt: string | null;
