@@ -1,4 +1,4 @@
-# Synchro Calendrier UdeM
+# ClientSide Horaire
 
 Extension Chrome qui transforme l'horaire du Centre étudiant de l'Université de Montréal
 (Synchro) en un vrai calendrier : un fichier `.ics` à importer dans Google Agenda, Outlook

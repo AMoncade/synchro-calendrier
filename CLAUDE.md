@@ -1,4 +1,4 @@
-# Synchro Calendrier UdeM — instructions de session
+# ClientSide Horaire — instructions de session
 
 Extension Chrome (Manifest V3, TypeScript) qui lit l'horaire et les examens du Centre
 étudiant de l'UdeM (Synchro, PeopleSoft) sur la session déjà ouverte de l'étudiant, et

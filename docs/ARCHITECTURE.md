@@ -1,4 +1,4 @@
-# Architecture — Synchro Calendrier UdeM
+# Architecture — ClientSide Horaire
 
 ## 1. Objectif
 

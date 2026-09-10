@@ -1,4 +1,4 @@
-# Politique de confidentialité — Synchro Calendrier UdeM
+# Politique de confidentialité — ClientSide Horaire
 
 **Données lues.** L'extension lit, dans votre navigateur, le contenu de la page « Votre
 horaire cours » (vue Liste) et du résumé d'horaire du Centre étudiant de l'Université de

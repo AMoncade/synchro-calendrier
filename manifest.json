@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Synchro Calendrier UdeM",
+  "name": "ClientSide Horaire",
   "version": "0.3.0",
   "description": "Non officiel. Horaire Synchro en calendrier .ics, examens, conflits, échéances et notes StudiUM. Tout reste sur votre ordinateur.",
   "permissions": [
@@ -13,7 +13,7 @@
   ],
   "action": {
     "default_popup": "src/popup/index.html",
-    "default_title": "Synchro Calendrier"
+    "default_title": "ClientSide Horaire"
   },
   "background": {
     "service_worker": "src/background/index.ts",

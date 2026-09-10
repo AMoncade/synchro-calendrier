@@ -1,4 +1,4 @@
-# Installer et utiliser Synchro Calendrier UdeM
+# Installer et utiliser ClientSide Horaire
 
 Ce guide s'adresse à l'étudiant qui veut exporter son horaire du Centre étudiant vers
 Google Agenda, Outlook ou Calendrier (Apple). L'extension n'est pas encore publiée sur le
@@ -43,7 +43,7 @@ Le dossier `dist/` apparaît à la racine. C'est lui que vous chargerez.
    empaquetée**.
 4. Sélectionnez le dossier `dist/` (ou le dossier décompressé) — celui qui **contient**
    `manifest.json`, pas le fichier lui-même. Cliquez **Sélectionner un dossier**.
-5. La carte « Synchro Calendrier UdeM » apparaît. Vérifiez qu'elle est **activée** et
+5. La carte « ClientSide Horaire » apparaît. Vérifiez qu'elle est **activée** et
    qu'aucune erreur rouge n'est affichée.
 
 Edge, Brave, Opera et Vivaldi acceptent la même procédure (`edge://extensions`,
@@ -53,7 +53,7 @@ fait.
 ### Épingler l'icône
 
 Par défaut Chrome cache les extensions derrière la pièce de casse-tête 🧩 de la barre
-d'outils. Cliquez dessus, trouvez **Synchro Calendrier**, puis cliquez sur l'épingle à
+d'outils. Cliquez dessus, trouvez **ClientSide Horaire**, puis cliquez sur l'épingle à
 droite de son nom. L'icône reste maintenant visible ; c'est elle qui affichera le compte à
 rebours avant votre prochain examen.
 

@@ -1,4 +1,4 @@
-# Fiche Chrome Web Store — Synchro Calendrier UdeM
+# Fiche Chrome Web Store — ClientSide Horaire
 
 Textes prêts à coller dans la console développeur du Chrome Web Store. Les limites de
 caractères imposées par le store sont indiquées entre parenthèses ; le compte réel est
@@ -9,10 +9,10 @@ donné après chaque champ concerné.
 ## Nom
 
 ```
-Synchro Calendrier UdeM
+ClientSide Horaire
 ```
 
-_(limite 75 caractères — 23 utilisés)_
+_(limite 75 caractères — 18 utilisés)_
 
 ## Résumé (limite 132 caractères)
 
@@ -25,7 +25,7 @@ _(121 caractères)_
 ## Description détaillée
 
 ```
-Synchro Calendrier transforme l'horaire du Centre étudiant de l'Université de Montréal en un vrai calendrier, en trois clics et sans quitter votre navigateur.
+ClientSide Horaire transforme l'horaire du Centre étudiant de l'Université de Montréal en un vrai calendrier, en trois clics et sans quitter votre navigateur.
 
 CE QU'ELLE FAIT
 
