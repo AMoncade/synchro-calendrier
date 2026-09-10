@@ -4,7 +4,7 @@
 // messages et un peu d'état d'interface (onglet courant, sections dépliées).
 // Aucun symbole Unicode décoratif : la police du popup ne les rend pas (voir icons.ts).
 
-import { excludedDates } from "../core/calendar-udem";
+import { excludedDates, getTermCalendar } from "../core/calendar-udem";
 import { classesRemainingToday, examClusters, minutesOfTime } from "../core/alerts";
 import { findConflicts } from "../core/conflicts";
 import { expandSchedule } from "../core/expand";
@@ -144,6 +144,24 @@ function shortLabel(o: Occurrence): string {
   return `${d.sigle}${d.section ? `-${d.section}` : ""} · ${d.component}`;
 }
 
+/** Libellé compact pour les listes denses : « MAT1400-A · TH » (volet abrégé). */
+function denseLabel(o: Occurrence): string {
+  if (o.kind === "examen") return shortLabel(o);
+  const m = /\((TH|TP|LAB|AUTRE)\)$/.exec(o.label);
+  const d = describe(o);
+  return `${d.sigle}${d.section ? `-${d.section}` : ""} · ${m?.[1] ?? d.component}`;
+}
+
+/** « Congé — Fête du Travail », « Relâche », ou undefined si la date n'est pas un jour sans cours. */
+function dayOffLabel(view: View, date: string): string | undefined {
+  const cal = getTermCalendar(view.schedule.term.code);
+  if (!cal) return undefined;
+  const holiday = cal.holidays.find((h) => h.date === date);
+  if (holiday) return `Congé — ${holiday.label.replace(/\s*\(.*\)$/, "")}`;
+  if (cal.breakStart && cal.breakEnd && date >= cal.breakStart && date <= cal.breakEnd) return "Relâche";
+  return undefined;
+}
+
 function swatch(code: string): HTMLElement {
   const s = el("span", "swatch");
   s.style.background = colorOf(code);
@@ -189,8 +207,12 @@ function renderToday(view: View, now: Now): void {
   const conflicts = findConflicts(view.occurrences).filter((c) => c.date >= now.date);
   if (conflicts.length) panel.append(withIcon("warning", `${conflicts.length} chevauchement${conflicts.length > 1 ? "s" : ""} à venir — voir l'onglet Semaine.`, "warn"));
 
-  // Aperçu : les prochaines séances après le jour affiché, sur sept jours.
-  const after = view.occurrences.filter((o) => o.date > today.date && o.date <= addDays(today.date, 7)).slice(0, PREVIEW_MAX);
+  // Aperçu : le reste de la semaine civile du jour affiché (jusqu'au dimanche),
+  // seulement quand la journée est creuse — sinon il tomberait sous le pli.
+  const sunday = addDays(mondayOf(today.date), 6);
+  const after = today.items.length <= 2
+    ? view.occurrences.filter((o) => o.date > today.date && o.date <= sunday).slice(0, PREVIEW_MAX)
+    : [];
   if (after.length) {
     const box = el("div", "preview");
     box.append(el("h3", "", "Le reste de la semaine"));
@@ -289,12 +311,15 @@ function renderWeek(view: View, now: Now): void {
     const cls = date === now.date ? " today" : date < now.date ? " past" : "";
     const day = el("div", `day${cls}`);
     day.append(el("div", "dayname", `${weekdayName((i + 1) as 1, "long")} ${dayMonthShort(date)}`));
-    if (items.length === 0) day.append(el("div", "dim", "Aucun cours"));
+    if (items.length === 0) day.append(el("div", "holiday", dayOffLabel(view, date) ?? "Aucun cours"));
     for (const o of items) {
       const key = `${o.date}|${o.start}|${o.label}`;
-      const row = el("div", `week-item${o.kind === "examen" ? " exam" : ""}`);
+      const open = ui.expanded === key;
+      const row = el("div", `week-item${o.kind === "examen" ? " exam" : ""}${open ? " open" : ""}`);
       row.style.borderLeftColor = colorOf(o.courseCode);
-      row.append(el("span", "when", `${o.start}–${o.end}`), el("span", "", shortLabel(o)), el("span", "where", parseLocation(o.location).salle || formatLocation(o.location)));
+      const chevron = el("span", "chevron");
+      chevron.append(icon("right", 12));
+      row.append(el("span", "when", `${o.start}–${o.end}`), el("span", "label", denseLabel(o)), el("span", "where", parseLocation(o.location).salle || formatLocation(o.location)), chevron);
       row.addEventListener("click", () => toggleExpanded(key, view));
       day.append(row);
       if (ui.expanded === key) day.append(detailsPanel(o, view));
@@ -384,14 +409,15 @@ function renderExams(view: View, now: Now): void {
     panel.append(toggle);
   }
 
-  for (const c of examClusters(exams)) {
-    if (daysUntil(c.end, now.date) < 0) continue;
-    panel.append(withIcon("warning", `${c.exams.length} examens en ${daysUntil(c.end, c.start) + 1} jours (${shortDate(c.start)} → ${shortDate(c.end)})`, "warn"));
+  // Une seule grappe signalée, et seulement si elle commence dans les 30 jours.
+  const cluster = examClusters(exams).find((c) => daysUntil(c.end, now.date) >= 0 && daysUntil(c.start, now.date) <= 30);
+  if (cluster) {
+    panel.append(withIcon("warning", `${cluster.exams.length} examens en ${daysUntil(cluster.end, cluster.start) + 1} jours (${shortDate(cluster.start)} → ${shortDate(cluster.end)})`, "warn"));
   }
 
   const groups: [string, Exam[]][] = [
     ["Intras", exams.filter((e) => e.kind === "intra")],
-    ["Finals", exams.filter((e) => e.kind === "final")],
+    ["Finaux", exams.filter((e) => e.kind === "final")],
     ["Autres", exams.filter((e) => e.kind === "autre")],
   ];
   for (const [title, list] of groups) {
@@ -402,11 +428,14 @@ function renderExams(view: View, now: Now): void {
     for (const e of visible) {
       const left = daysUntil(e.date, now.date);
       const key = `exam|${e.courseCode}|${e.date}`;
-      const row = el("div", `exam-row${left < 0 ? " past" : left <= 7 ? " soon" : ""}`);
+      const open = ui.expanded === key;
+      const row = el("div", `exam-row${left < 0 ? " past" : left <= 7 ? " soon" : ""}${open ? " open" : ""}`);
       const name = el("span", "");
       name.append(swatch(e.courseCode), document.createTextNode(sigle(e.courseCode)));
       const leftText = left >= 0 && left <= DAYS_LEFT_HORIZON ? formatDaysUntil(left) : "";
-      row.append(name, el("span", "when", shortDate(e.date)), el("span", "left", leftText));
+      const chevron = el("span", "chevron");
+      chevron.append(icon("right", 12));
+      row.append(name, el("span", "when", shortDate(e.date)), el("span", "left", leftText), chevron);
       row.addEventListener("click", () => toggleExpanded(key, view));
       sec.append(row);
       if (ui.expanded === key) {
