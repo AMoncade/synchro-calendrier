@@ -317,7 +317,7 @@ describe("captureStudium", () => {
     );
     await expect(captureStudium(doFetch, SESSKEY, new Date(2026, 8, 10))).resolves.toEqual({
       ok: false,
-      error: "reseau",
+      error: "reseau (TypeError: Failed to fetch)",
     });
   });
 });

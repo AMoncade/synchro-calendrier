@@ -246,8 +246,11 @@ async function callMoodle(
       headers: { "Content-Type": "application/json" },
       body: ajaxBody(methodname, args),
     });
-  } catch {
-    return { ok: false, error: "reseau" };
+  } catch (e) {
+    // Le nom et le message de l'exception remontent jusqu'au pied du popup : c'est la
+    // seule fenêtre de diagnostic sans DevTools (2026-09-10 : « reseau » nu ne disait rien).
+    const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    return { ok: false, error: `reseau (${detail.slice(0, 80)})` };
   }
   if (!response.ok) return { ok: false, error: `http-${response.status}` };
   try {
@@ -299,7 +302,12 @@ export interface SyncEnv {
   writeLastRun(atMs: number): Promise<void>;
   readForceNext(): Promise<unknown>;
   clearForceNext(): Promise<void>;
+  /** Délai avant l'unique relance sur erreur réseau, en ms. Défaut 1500 ; 0 dans les tests. */
+  retryDelayMs?: number;
 }
+
+const RETRY_DELAY_MS = 1500;
+const isNetworkError = (error: string): boolean => error.startsWith("reseau");
 
 /**
  * Consomme le drapeau du popup : on le **retire d'abord**, on force ensuite.
@@ -337,8 +345,14 @@ export async function runSync(env: SyncEnv, options: { force: boolean }): Promis
   // page StudiUM ouverte. Le popup garde la main avec STUDIUM_SYNC_NOW.
   await env.writeLastRun(startedAt.getTime());
 
-  const outcome = await captureStudium(env.fetch, sesskey, startedAt);
+  let outcome = await captureStudium(env.fetch, sesskey, startedAt);
+  if (!outcome.ok && isNetworkError(outcome.error)) {
+    await new Promise((resolve) => setTimeout(resolve, env.retryDelayMs ?? RETRY_DELAY_MS));
+    outcome = await captureStudium(env.fetch, sesskey, startedAt);
+  }
   if (!outcome.ok) {
+    // Un échec réseau ne doit pas bloquer 30 min : la page suivante réessaie.
+    if (isNetworkError(outcome.error)) await env.writeLastRun(0);
     env.send(failedMessage(outcome.error, localNow(env.now())));
     return;
   }
