@@ -1,5 +1,65 @@
 # WORKLOG — Synchro Calendrier UdeM
 
+## 2026-09-10 — Phase 12 : échéances StudiUM et événements manuels (version 0.3.0)
+
+- Point de départ : repérage de l'utilisateur sur sa session StudiUM
+  (`docs/REPERAGE-STUDIUM-2026-09-10.md`, versionné à ea0a60a) et ses décisions : fusionner
+  `open` + `close` en une échéance à fenêtre, lier StudiUM → Synchro par le sigle seul,
+  StudiUM en complément (les intras/finaux restent ceux de Synchro), notes hors périmètre
+  jusqu'à la v3 (données sensibles, révision Web Store). Voie retenue : l'API AJAX interne de
+  Moodle depuis un content script (cookie de session, aucun jeton) ; l'export ICS à
+  `authtoken` permanent reste un plan B non implémenté. Tout consigné dans
+  `docs/ARCHITECTURE.md` §7.
+- Contrat d'abord (ea0a60a) : `Deadline`, `StudiumCourse`, `RawMoodleEvent`,
+  `RawStudiumCapture` dans `model.ts` ; messages `STUDIUM_SYNCED`/`STUDIUM_FAILED`/
+  `DEADLINE_UPSERT`/`DEADLINE_REMOVE`/`COURSE_LINK_SET`/`STUDIUM_SYNC_NOW` ; état
+  `deadlines`, `hiddenDeadlines`, `studium`, `courseLinks`. Trois sessions Opus briefées
+  par fichier sur ce contrat, intégratrice adrie-aa :
+  - **adrie-f6**, `core/deadlines.ts` (de8172f, +69 tests) : fusion d'une synchro (vue
+    complète : remplace les `studium:*`, garde les manuelles, respecte les masquées),
+    `removeDeadline` masque une StudiUM, `resolveCourseCode` (surcharge `courseLinks`),
+    `deadlineStatus` (due-today prime sur open), `validateManual` (31 février refusé,
+    « mat 1400 » normalisé). Contrôle de mutation mesuré après coup : borne haute de
+    `upcomingDeadlines` cassée → 2 échecs. Son seul accroc de contrat, l'instant d'échec
+    sans champ, est corrigé au merge par `StudiumStatus.lastErrorAt`.
+  - **adrie-29**, `core/studium.ts` (4a8b2fe, +52 tests, merge 0b125f8) : schéma des
+    événements lu dans le source Moodle 4.4 (`event_exporter_base`) ; découverte : les
+    événements hors module portent `/course/view.php?id=<courseid>`, lire `id=` naïvement
+    prendrait un courseid pour un cmid → `MODULE_URL_RE` exige `/mod/<type>/view.php`.
+    Fuseau par `Intl.DateTimeFormat` (Toronto). URL refusée si `authtoken=`/`sesskey=` ou
+    schéma non http(s). Six mutations testées, un trou comblé (« premier vu gagne »).
+    **Fixture synthétique** dérivée du source Moodle et du repérage, marquée comme telle :
+    aucune capture JSON réelle de StudiUM n'existe (extension Chrome de Claude déconnectée
+    ce jour). Le « Devoir 1 » de la fixture est inventé (0 devoir daté sur A26).
+  - **adrie-07**, `content/studium.ts` (3870707, +33 tests, merge cce7a9c) : sesskey lu
+    dans le DOM (lien de déconnexion, sinon `<script>` inline — présence sur StudiUM NON
+    vérifiée, à trancher à la première visite), mois courant + 4 suivants en séquence
+    (séquentialité mesurée, `maxInFlight === 1`), enveloppe et noms d'arguments vérifiés dans
+    MOODLE_405_STABLE (`service.php`, `external_api`, `calendar/externallib.php`), anti-rafale
+    30 min écrit avant les appels (clé `synchro-calendrier.studium-last-run`), sortie
+    `sesskey-absent` avant écriture. Couture trouvée par lui : « Synchroniser StudiUM » qui
+    ouvre un onglet ne forçait pas la synchro sous 30 min, et le popup meurt au changement
+    d'onglet donc aucun message différé ne peut partir de lui → drapeau
+    `synchro-calendrier.studium-force-next` posé par le popup, consommé au démarrage
+    (retiré d'abord, forcé ensuite).
+- Intégratrice (dc89547 → cce7a9c) : service worker (cinq gestionnaires sur
+  `core/deadlines.ts`, `CLEAR_ALL` retire aussi les deux clés du content script), popup
+  (section « Échéances » sous Aujourd'hui à 7 jours + fenêtres ouvertes, lignes par jour dans
+  Semaine avec provenance, formulaire « Ajouter un événement », écran « Lier les sites
+  StudiUM », ligne d'état StudiUM au pied), ICS (`deadlineEvent` : DTSTART = DTEND = `due`,
+  fenêtre dans DESCRIPTION, URL jamais avec jeton, VALARM 24 h ; +3 tests), manifest
+  (host + content script StudiUM, top frame), PRIVACY, fiche Store, README.
+  Décision : la description Moodle n'est pas mappée en note (HTML à nettoyer, utilité non
+  démontrée). `RawMoodleEvent.location` ajouté, recopiage confié à adrie-29.
+- Gate à cce7a9c : 18 fichiers, **409 tests**, build OK, `dist/assets/studium.ts-*.js` produit.
+- En cours après cce7a9c : passe de couture d'adrie-f6 (branche `sweep`, lecture seule,
+  cinq axes : identité des ids, fenêtre orpheline, provenance, fuseau, état antérieur) ;
+  test de chaîne d'adrie-29 (branche `studium-pipeline` : enveloppe brute → flatten → parse →
+  merge, plus `location`).
+- Reste à l'utilisateur : recharger `dist/` dans Chrome, ouvrir StudiUM connecté et vérifier
+  la première synchro (sesskey trouvé ? format ?) ; captures Web Store des nouveaux écrans ;
+  la liste des « bugs visuels v2 » de l'étape 1 n'a jamais été reçue.
+
 ## 2026-09-09 soir — v2 (spec de l'utilisateur, Downloads/SPEC.md)
 
 - Dépôt GitHub public créé et main poussé : https://github.com/AMoncade/synchro-calendrier

@@ -3,6 +3,8 @@
 Extension Chrome (Manifest V3, TypeScript) qui lit l'horaire et les examens du Centre
 étudiant de l'UdeM (Synchro, PeopleSoft) sur la session déjà ouverte de l'étudiant, et
 produit un fichier ICS + une détection de conflits + un compte à rebours d'examens.
+Depuis la phase 12 (2026-09-10), elle lit aussi les échéances (quiz, devoirs) du calendrier
+StudiUM par l'API AJAX interne de Moodle, sur la session ouverte de l'étudiant.
 **Tout reste dans le navigateur : aucun serveur, aucune clé, aucune transmission.**
 
 ## À lire en premier
@@ -27,7 +29,8 @@ modifier le document **et** consigner le changement dans le WORKLOG.
 - **Parser sur le texte**, jamais sur les ids ou classes PeopleSoft (sauf pour localiser
   un tableau).
 - **Fixtures anonymisées** avant commit (`node scripts/scrub-fixture.mjs`).
-- Permissions minimales : `storage`, `alarms`, host Synchro uniquement.
+- Permissions minimales : `storage`, `alarms`, hosts Synchro et StudiUM uniquement
+  (StudiUM depuis la phase 12 : calendrier et liste des cours, jamais les notes).
 - Aucune dépendance ajoutée sans une ligne de justification dans le WORKLOG.
 - Code et identifiants en anglais ; commentaires et interface en français.
 

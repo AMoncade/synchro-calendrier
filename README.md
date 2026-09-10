@@ -30,6 +30,14 @@ stockage local de Chrome, et n'envoie rien nulle part. Voir
 - **Conflits** — deux séances qui se chevauchent ou un cours pendant un examen : signalé
   dans Aujourd'hui et Semaine.
 - **Badge** — l'icône affiche le nombre de cours qu'il vous reste aujourd'hui.
+- **Échéances StudiUM** — ouvrez StudiUM une fois : vos quiz et devoirs (fenêtre
+  d'ouverture, date limite, lien direct vers l'activité) apparaissent dans Aujourd'hui et
+  Semaine, et dans le `.ics`. Sans jeton ni mot de passe : l'extension interroge le
+  calendrier de StudiUM avec la session que vous avez déjà ouverte, au plus une fois par
+  demi-heure (menu ⋯ → **Synchroniser StudiUM** pour forcer).
+- **Événements à la main** — un rendez-vous, une remise, une séance de révision : menu ⋯ →
+  **Ajouter un événement**. Chaque échéance affiche sa provenance (StudiUM ou ajoutée à la
+  main) ; une échéance StudiUM retirée ne revient pas à la synchronisation suivante.
 - **Repli « coller mon horaire »** — si l'extraction automatique échoue, copiez-collez le
   texte de la page depuis le menu ⋯ ; le résultat est le même.
 
@@ -67,6 +75,15 @@ sont remplis. Le bouton **Exporter .ics** télécharge un fichier `horaire-udem-
 La page Centre étudiant seule donne un horaire partiel, sans dates de début et de fin ni
 examens. C'est la vue **Liste** qui contient tout : passez toujours par elle.
 
+### Échéances StudiUM
+
+Ouvrez [StudiUM](https://studium.umontreal.ca/my/) connecté : l'extension lit le calendrier
+des cinq prochains mois et la liste de vos sites de cours. Un quiz qui « s'ouvre » puis « se
+termine » devient une seule échéance avec sa fenêtre. Les sites sont rattachés à vos cours
+Synchro par le sigle (`MAT1400-AB-A26` → MAT 1400) ; si un site ne correspond pas, menu ⋯ →
+**Lier les sites StudiUM**. Les intras et finaux restent ceux de Synchro : StudiUM est un
+complément, pas une deuxième source d'examens.
+
 ### Importer le fichier `.ics`
 
 - **Google Agenda** — [Paramètres → Importer et exporter](https://calendar.google.com/calendar/r/settings/export),
@@ -101,6 +118,11 @@ d'un coup.
   gardée comme note sur le cours, jamais placée dans le `.ics`.
 - **Export ponctuel, pas une synchronisation.** Le fichier est une photo de votre horaire
   au moment de l'export. Un changement de section ou d'examen demande un nouvel export.
+- **StudiUM : quiz et devoirs seulement, et seulement s'ils ont une date.** Un devoir sans
+  date d'échéance configurée par l'enseignant est invisible au calendrier Moodle, donc à
+  l'extension. Les notes ne sont pas lues. Le format de l'API interne de Moodle peut changer
+  d'une version à l'autre ; la synchronisation échoue alors proprement (message dans le
+  pied du popup) sans toucher à l'horaire.
 - **Interface française de Synchro seulement**, et pages du premier cycle telles
   qu'observées à l'automne 2026. Un changement de gabarit PeopleSoft peut casser
   l'extraction ; le mode « coller mon horaire » sert alors de repli.
