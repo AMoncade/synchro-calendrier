@@ -71,6 +71,22 @@ async function handle(message: Message): Promise<unknown> {
     case "COURSE_LINK_SET":
       await saveState(setCourseLink(await loadState(), message.studiumCourseId, message.courseCode));
       return { ok: true };
+    // Phase 13 — cochage et carnet de notes. Logique pure dans core/deadlines.ts
+    // (setDeadlineDone) et core/grades.ts (mergeGrades) dès que ces branches atterrissent ;
+    // en attendant, deux opérations d'état triviales ici, sans mutation.
+    case "DEADLINE_DONE_SET": {
+      const state = await loadState();
+      const done = new Set(state.doneDeadlines ?? []);
+      if (message.done) done.add(message.id);
+      else done.delete(message.id);
+      await saveState({ ...state, doneDeadlines: [...done] });
+      return { ok: true };
+    }
+    case "STUDIUM_GRADES_SYNCED": {
+      const state = await loadState();
+      await saveState({ ...state, grades: { reports: message.reports, syncedAt: message.syncedAt } });
+      return { ok: true };
+    }
     case "STUDIUM_SYNC_NOW":
       // Adressé au content script StudiUM par chrome.tabs.sendMessage, jamais au service worker.
       return { ok: false };

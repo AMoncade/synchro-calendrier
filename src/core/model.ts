@@ -193,6 +193,42 @@ export interface RawMoodleEvent {
   course?: { id: number; shortname: string; fullname: string; idnumber?: string } | null;
 }
 
+// ---------------------------------------------------------------------------
+// Carnet de notes StudiUM (phase 13, 2026-09-10, opt-in). Lu dans
+// /grade/report/user/index.php?id=<courseid>, gardé tel qu'affiché (chaînes
+// Moodle : « 8,50 », « 0–10 », « 85,00 % »), jamais recalculé. Voir ARCHITECTURE §8.
+// ---------------------------------------------------------------------------
+
+export interface GradeItem {
+  /** « Test de connaissances préliminaires », « Quiz-tp3 ». */
+  name: string;
+  /** Note telle qu'affichée, "-" si non publiée. */
+  grade: string;
+  /** « 0–10 » (Valeurs possibles). */
+  range?: string;
+  /** « 85,00 % ». */
+  percentage?: string;
+  /** Pondération calculée. */
+  weight?: string;
+  /** Moyenne du groupe, si le cours l'expose. */
+  average?: string;
+  feedback?: string;
+  /** Profondeur dans le carnet (0 = élément, 1+ = catégorie), pour l'indentation. */
+  depth?: number;
+  /** Lien vers l'activité, sans jeton. */
+  url?: string;
+}
+
+export interface GradeReport {
+  studiumCourseId: number;
+  /** "MAT1600-AB-A26" */
+  shortname: string;
+  courseCode?: string;
+  items: GradeItem[];
+  /** Ligne « Total du cours », si présente. */
+  total?: GradeItem;
+}
+
 export interface RawStudiumCapture {
   /** Mois interrogés, "AAAA-MM", dans l'ordre. */
   months: string[];

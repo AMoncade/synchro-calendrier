@@ -53,10 +53,10 @@ body {
 h1 { font-size: 15px; margin: 0; font-weight: 600; }
 .term { color: var(--muted); font-size: 12px; }
 
-.tabs { display: flex; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; gap: 22px; padding: 0 16px; border-bottom: 1px solid var(--line); }
 .tabs [role="tab"] {
-  flex: 1; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);
-  padding: 8px 4px 9px; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; margin-bottom: -1px;
+  flex: 0 0 auto; justify-content: center; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);
+  padding: 8px 2px 9px; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; margin-bottom: -1px;
 }
 .tabs [role="tab"]:hover { color: var(--fg-2); }
 .tabs [role="tab"][aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }

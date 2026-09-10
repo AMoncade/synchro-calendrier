@@ -1,7 +1,7 @@
 // Messages runtime entre content scripts, service worker et popup, et forme de
 // l'état persisté dans chrome.storage.local.
 
-import type { Deadline, Schedule, StudiumCourse } from "../core/model";
+import type { Deadline, GradeReport, Schedule, StudiumCourse } from "../core/model";
 
 export type CaptureSource = "liste" | "centre";
 
@@ -21,7 +21,15 @@ export type Message =
   /** popup → service worker : lier un site StudiUM à un sigle Synchro (`null` = ne pas lier). */
   | { type: "COURSE_LINK_SET"; studiumCourseId: number; courseCode: string | null }
   /** popup → content/studium.ts (via chrome.tabs.sendMessage) : forcer une synchronisation malgré l'anti-rafale. */
-  | { type: "STUDIUM_SYNC_NOW" };
+  | { type: "STUDIUM_SYNC_NOW" }
+  // Phase 13 — échéances cochées et carnet de notes (docs/ARCHITECTURE.md §8)
+  /** popup → service worker : marquer une échéance faite / à refaire. */
+  | { type: "DEADLINE_DONE_SET"; id: string; done: boolean }
+  /** content/studium.ts → service worker : carnets de notes lus (opt-in seulement). */
+  | { type: "STUDIUM_GRADES_SYNCED"; reports: GradeReport[]; syncedAt: string };
+
+/** Clé chrome.storage.local lue par content/studium.ts : `true` = lire aussi les carnets de notes. */
+export const GRADES_OPT_IN_KEY = "synchro-calendrier.studium-grades-optin";
 
 export interface StudiumStatus {
   lastSyncAt: string | null;
@@ -46,6 +54,10 @@ export interface StoredState {
   studium?: StudiumStatus;
   /** Surcharge de liaison : `courseid` StudiUM → sigle Synchro, `null` = explicitement non lié. */
   courseLinks?: Record<string, string | null>;
+  /** Ids d'échéances cochées « fait » ; une synchro ne décoche rien. */
+  doneDeadlines?: string[];
+  /** Carnets de notes (opt-in), remplacés en bloc à chaque lecture. */
+  grades?: { reports: GradeReport[]; syncedAt: string };
 }
 
 export const STORAGE_KEY = "synchro-calendrier.v1";
