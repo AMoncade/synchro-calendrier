@@ -22,12 +22,21 @@
 //
 // Ne journalise jamais la page, ni le `sesskey`, ni les données.
 
-import type { Deadline, RawMoodleEvent, RawStudiumCapture, StudiumCourse } from "../core/model";
+import { parseGradeReport } from "../core/grades";
+import type {
+  Deadline,
+  GradeReport,
+  RawMoodleEvent,
+  RawStudiumCapture,
+  StudiumCourse,
+} from "../core/model";
 import { deadlinesFromStudium, studiumCourses } from "../core/studium";
-import type { Message } from "../lib/messages";
+import { GRADES_OPT_IN_KEY, type Message } from "../lib/messages";
 
 const STUDIUM_HOST = "studium.umontreal.ca";
 const AJAX_PATH = `https://${STUDIUM_HOST}/lib/ajax/service.php`;
+/** Carnet de notes d'un site, vue « utilisateur » : sans `userid`, Moodle sert le sien. */
+const GRADE_REPORT_PATH = `https://${STUDIUM_HOST}/grade/report/user/index.php`;
 
 const MONTHLY_VIEW = "core_calendar_get_calendar_monthly_view";
 const TIMELINE_COURSES = "core_course_get_enrolled_courses_by_timeline_classification";
@@ -294,6 +303,69 @@ export async function captureStudium(
 }
 
 // ---------------------------------------------------------------------------
+// Carnets de notes — opt-in strict (docs/ARCHITECTURE.md §8).
+//
+// Rien ici ne tourne sans le booléen `true` dans GRADES_OPT_IN_KEY : sans opt-in,
+// aucune requête ne part vers `/grade/`. On ne journalise jamais ces pages, ni
+// leurs URL : la vue « Analyse de l'évaluation » porte un `userid=`, et une URL
+// de session porte un `sesskey=`. Ni l'un ni l'autre ne doit sortir d'ici — la
+// seule URL construite est celle du carnet, qui ne contient qu'un `courseid`.
+// ---------------------------------------------------------------------------
+
+export interface StudiumTextResponse {
+  ok: boolean;
+  status: number;
+  text(): Promise<string>;
+}
+
+/**
+ * Le carnet est un GET qui rend une page HTML — pas le POST JSON de l'API AJAX.
+ * Type distinct de `StudiumFetch` exprès : élargir `StudiumResponse` avec `text()`
+ * imposerait ce champ à tous les faux `Response` des autres suites, alors que
+ * l'enveloppe AJAX, elle, n'est jamais lue en texte.
+ */
+export type StudiumTextFetch = (url: string) => Promise<StudiumTextResponse>;
+
+export function gradeReportUrl(studiumCourseId: number): string {
+  return `${GRADE_REPORT_PATH}?id=${encodeURIComponent(String(studiumCourseId))}`;
+}
+
+/**
+ * Un carnet par site, **un à la fois**. Un site qui échoue est sauté sans arrêter
+ * les autres : les notes sont un supplément, la synchro du calendrier est déjà
+ * envoyée à ce stade et ne doit pas être compromise par un carnet illisible.
+ */
+export async function captureGrades(
+  fetchText: StudiumTextFetch,
+  courses: StudiumCourse[],
+): Promise<GradeReport[]> {
+  const reports: GradeReport[] = [];
+  for (const course of courses) {
+    let html: string;
+    try {
+      const response = await fetchText(gradeReportUrl(course.id));
+      if (!response.ok) continue; // 403 sur un site fermé, 404 sur un site sans carnet.
+      html = await response.text();
+    } catch {
+      continue; // Réseau : ce site seulement est perdu.
+    }
+    try {
+      const report = parseGradeReport(html, {
+        id: course.id,
+        shortname: course.shortname,
+        courseCode: course.courseCode,
+      });
+      if (report) reports.push(report);
+    } catch {
+      // Le parseur vient d'un autre module : une page inattendue ne doit pas
+      // emporter les carnets déjà lus.
+      continue;
+    }
+  }
+  return reports;
+}
+
+// ---------------------------------------------------------------------------
 // Orchestration — testable par injection, sans DOM ni API chrome.
 // ---------------------------------------------------------------------------
 
@@ -307,6 +379,10 @@ export interface SyncEnv {
   writeLastRun(atMs: number): Promise<void>;
   readForceNext(): Promise<unknown>;
   clearForceNext(): Promise<void>;
+  /** GET d'une page HTML (carnet de notes) : voir `StudiumTextFetch`. */
+  fetchText: StudiumTextFetch;
+  /** Opt-in des carnets de notes. Seul le booléen `true` autorise la lecture. */
+  readGradesOptIn(): Promise<unknown>;
   /** Délai avant l'unique relance sur erreur réseau, en ms. Défaut 1500 ; 0 dans les tests. */
   retryDelayMs?: number;
 }
@@ -337,6 +413,10 @@ export function failedMessage(error: string, at: string): Message {
   return { type: "STUDIUM_FAILED", error, at };
 }
 
+export function gradesMessage(reports: GradeReport[], syncedAt: string): Message {
+  return { type: "STUDIUM_GRADES_SYNCED", reports, syncedAt };
+}
+
 export async function runSync(env: SyncEnv, options: { force: boolean }): Promise<void> {
   const sesskey = env.sesskey();
   if (sesskey === null) {
@@ -362,13 +442,18 @@ export async function runSync(env: SyncEnv, options: { force: boolean }): Promis
     env.send(failedMessage(outcome.error, localNow(env.now())));
     return;
   }
-  env.send(
-    syncedMessage(
-      deadlinesFromStudium(outcome.capture),
-      studiumCourses(outcome.capture),
-      localNow(env.now()),
-    ),
-  );
+  const courses = studiumCourses(outcome.capture);
+  // Le calendrier part toujours en premier : c'est la fonction principale, elle ne
+  // doit pas attendre les carnets ni dépendre de leur sort.
+  env.send(syncedMessage(deadlinesFromStudium(outcome.capture), courses, localNow(env.now())));
+
+  // Carnets de notes, dans le même run — l'anti-rafale de 30 min couvre l'ensemble,
+  // il n'y a pas de tampon séparé, mais le nombre de requêtes passe de 6 à 6 + N sites.
+  // Seul le booléen `true` compte, comme pour le drapeau de forçage ; un storage
+  // illisible vaut « pas d'opt-in », jamais l'inverse.
+  const optIn = await env.readGradesOptIn().catch(() => undefined);
+  if (optIn !== true) return;
+  env.send(gradesMessage(await captureGrades(env.fetchText, courses), localNow(env.now())));
 }
 
 // ---------------------------------------------------------------------------
@@ -395,6 +480,9 @@ function browserEnv(): SyncEnv {
     writeLastRun: async (atMs) => chrome.storage.local.set({ [LAST_RUN_KEY]: atMs }),
     readForceNext: async () => (await chrome.storage.local.get(FORCE_NEXT_KEY))[FORCE_NEXT_KEY],
     clearForceNext: async () => chrome.storage.local.remove(FORCE_NEXT_KEY),
+    fetchText: (url) => fetch(url, { method: "GET", credentials: "include" }),
+    readGradesOptIn: async () =>
+      (await chrome.storage.local.get(GRADES_OPT_IN_KEY))[GRADES_OPT_IN_KEY],
   };
 }
 
