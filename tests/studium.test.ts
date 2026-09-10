@@ -391,10 +391,17 @@ describe("deadlinesFromStudium — identité et idempotence", () => {
     expect(deadlines.map((d) => d.id)).toEqual(["studium:6624100", "studium:6624200"]);
   });
 
-  it("n'attribue pas un événement sans URL quand le nom est ambigu", () => {
-    // Deux cmids sous le même nom : impossible de savoir auquel rattacher une
-    // ouverture sans URL. On ne devine pas — elle reste orpheline et tombe.
-    const deadlines = deadlinesFromStudium(
+  it("garde la fenêtre quand un homonyme apporte un second cmid", () => {
+    // Corrigé le 2026-09-10 : compter les cmids du panier ne suffisait pas.
+    // L'ouverture sans URL rejoignait le cmid tant qu'il était seul, puis
+    // redevenait orpheline dès qu'un homonyme arrivait — la fenêtre d'une
+    // échéance déjà affichée disparaissait d'une synchronisation à l'autre,
+    // sans bruit. L'ouverture va maintenant au groupe qui l'attend et dont la
+    // fermeture est la plus proche.
+    const seule = deadlinesFromStudium(
+      raw([quizEvent("close", edt(17, 23, 59), { id: 1 }), quizEvent("open", edt(14, 10, 30), { id: 3, url: undefined })]),
+    );
+    const avecHomonyme = deadlinesFromStudium(
       raw([
         quizEvent("close", edt(17, 23, 59), { id: 1 }),
         quizEvent("close", edt(24, 23, 59), {
@@ -404,8 +411,102 @@ describe("deadlinesFromStudium — identité et idempotence", () => {
         quizEvent("open", edt(14, 10, 30), { id: 3, url: undefined }),
       ]),
     );
-    expect(deadlines.map((d) => d.id)).toEqual(["studium:6624100", "studium:6624200"]);
+    expect(seule[0]?.start).toBe("2026-09-14T10:30");
+    expect(avecHomonyme.map((d) => d.id)).toEqual(["studium:6624100", "studium:6624200"]);
+    expect(avecHomonyme[0]?.start).toBe("2026-09-14T10:30"); // la fenêtre tient
+    expect(avecHomonyme[1]?.start).toBeUndefined();
+  });
+
+  it("préfère le groupe qui attend une ouverture à celui qui ferme le plus tôt", () => {
+    // Une activité qui a déjà son « s'ouvre » n'en veut pas un second, même si
+    // sa fermeture est la plus proche : le rôle manquant prime sur la distance.
+    const deadlines = deadlinesFromStudium(
+      raw([
+        quizEvent("open", edt(21, 10, 30), { id: 1 }), // cmid 6624100, sa fenêtre est complète
+        quizEvent("close", edt(22, 23, 59), { id: 2 }),
+        quizEvent("close", edt(24, 23, 59), {
+          id: 3,
+          url: "https://studium.umontreal.ca/mod/quiz/view.php?id=6624200",
+        }),
+        quizEvent("open", edt(14, 10, 30), { id: 4, url: undefined }),
+      ]),
+    );
+    const complete = deadlines.find((d) => d.id === "studium:6624100");
+    const attendait = deadlines.find((d) => d.id === "studium:6624200");
+    expect(complete?.start).toBe("2026-09-21T10:30"); // pas écrasée
+    expect(attendait?.start).toBe("2026-09-14T10:30");
+  });
+
+  it("ne tranche pas entre deux candidats à égalité parfaite", () => {
+    // Deux fermetures au même instant sous le même nom : rien ne départage.
+    // Deviner donnerait une fenêtre fausse, ce qui est pire que pas de fenêtre.
+    const deadlines = deadlinesFromStudium(
+      raw([
+        quizEvent("close", edt(17, 23, 59), { id: 1 }),
+        quizEvent("close", edt(17, 23, 59), {
+          id: 2,
+          url: "https://studium.umontreal.ca/mod/quiz/view.php?id=6624200",
+        }),
+        quizEvent("open", edt(14, 10, 30), { id: 3, url: undefined }),
+      ]),
+    );
+    expect(deadlines).toHaveLength(2);
     expect(deadlines.every((d) => d.start === undefined)).toBe(true);
+  });
+
+  it("rattache aussi une fermeture sans URL au groupe qui n'a qu'une ouverture", () => {
+    const deadlines = deadlinesFromStudium(
+      raw([
+        quizEvent("open", edt(14, 10, 30), { id: 1 }),
+        quizEvent("close", edt(17, 23, 59), { id: 2, url: undefined }),
+      ]),
+    );
+    expect(deadlines).toHaveLength(1);
+    expect(deadlines[0]?.id).toBe("studium:6624100");
+    expect(deadlines[0]?.start).toBe("2026-09-14T10:30");
+    expect(deadlines[0]?.due).toBe("2026-09-17T23:59");
+  });
+
+  it("ne dépend pas de l'ordre d'arrivée pour rattacher deux ouvertures sans URL", () => {
+    // Les fenêtres se chevauchent à dessein : traitées dans l'ordre d'arrivée
+    // plutôt que dans l'ordre du temps, les deux ouvertures s'échangeraient.
+    const events = [
+      quizEvent("close", edt(17, 23, 59), { id: 1 }),
+      quizEvent("close", edt(19, 23, 59), {
+        id: 2,
+        url: "https://studium.umontreal.ca/mod/quiz/view.php?id=6624200",
+      }),
+      quizEvent("open", edt(14, 10, 30), { id: 3, url: undefined }),
+      quizEvent("open", edt(16, 10, 30), { id: 4, url: undefined }),
+    ];
+    const direct = deadlinesFromStudium(raw(events));
+    const inverse = deadlinesFromStudium(raw([...events].reverse()));
+    expect(direct.map((d) => [d.id, d.start])).toEqual([
+      ["studium:6624100", "2026-09-14T10:30"],
+      ["studium:6624200", "2026-09-16T10:30"],
+    ]);
+    expect(inverse).toEqual(direct);
+  });
+
+  it("ne laisse pas une ouverture postérieure à sa fermeture voler la place", () => {
+    // L'ouverture du 25 ne peut appartenir ni à la fermeture du 17 (elle la
+    // suit) ; sans ce garde-fou elle se rattacherait quand même à la plus
+    // « proche » et priverait l'ouverture du 20 de sa fenêtre.
+    const deadlines = deadlinesFromStudium(
+      raw([
+        quizEvent("close", edt(17, 23, 59), { id: 1 }),
+        quizEvent("close", edt(30, 23, 59), {
+          id: 2,
+          url: "https://studium.umontreal.ca/mod/quiz/view.php?id=6624200",
+        }),
+        quizEvent("open", edt(25, 10, 30), { id: 3, url: undefined }),
+        quizEvent("open", edt(20, 10, 30), { id: 4, url: undefined }),
+      ]),
+    );
+    expect(deadlines.map((d) => [d.id, d.start])).toEqual([
+      ["studium:6624100", undefined],
+      ["studium:6624200", "2026-09-20T10:30"],
+    ]);
   });
 
   it("ne confond pas l'id d'une URL de site avec un cmid", () => {

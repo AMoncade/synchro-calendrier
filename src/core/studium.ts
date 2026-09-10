@@ -193,28 +193,58 @@ export function deadlinesFromStudium(raw: RawStudiumCapture): Deadline[] {
   // Second temps : à l'intérieur d'un panier, deux cmids distincts sont deux
   // activités distinctes, même sous le même nom — Moodle autorise les
   // homonymes dans un cours. Les fusionner ferait DISPARAÎTRE une échéance,
-  // ce qui est pire que le défaut qu'on corrige. Un événement sans cmid ne
-  // rejoint donc le cmid du panier que si ce panier n'en a qu'un seul.
-  const groups = new Map<string, EventGroup>();
-  for (const [bucket, list] of buckets) {
-    const cmids = new Set<string>();
-    for (const prepared of list) if (prepared.cmid) cmids.add(prepared.cmid);
-    const lone = cmids.size === 1 ? [...cmids][0] : undefined;
+  // ce qui est pire que le défaut qu'on corrige. Les événements qui portent un
+  // cmid forment donc les groupes de référence, un par cmid.
+  const groups: EventGroup[] = [];
+  for (const list of buckets.values()) {
+    const byCmid = new Map<string, EventGroup>();
+    const loose: PreparedEvent[] = [];
     for (const prepared of list) {
-      const cmid = prepared.cmid ?? lone;
-      const key = `${bucket}#${cmid ?? ""}`;
-      let group = groups.get(key);
+      if (!prepared.cmid) {
+        loose.push(prepared);
+        continue;
+      }
+      let group = byCmid.get(prepared.cmid);
       if (!group) {
-        group = cmid === undefined ? {} : { cmid };
-        groups.set(key, group);
+        group = { cmid: prepared.cmid };
+        byCmid.set(prepared.cmid, group);
       }
       // Premier vu gagne : deux passages successifs portent les mêmes valeurs.
       if (!group[prepared.role]) group[prepared.role] = prepared;
     }
+
+    // Troisième temps : placer les événements sans cmid. Compter les cmids du
+    // panier ne suffit pas — c'était le défaut du 2026-09-10 : dès qu'un
+    // homonyme apportait un second cmid, l'ouverture sans URL redevenait
+    // orpheline et l'échéance perdait sa fenêtre d'une synchro à l'autre.
+    // On cherche donc le groupe qui *attend* ce rôle et dont l'instant est le
+    // plus proche. L'ordre de traitement est fixé par le temps, pas par l'ordre
+    // d'arrivée, pour que deux captures identiques donnent le même résultat.
+    loose.sort(
+      (x, y) =>
+        x.timestart - y.timestart || compareStrings(x.role, y.role) || compareStrings(x.title, y.title),
+    );
+    const rest: PreparedEvent[] = [];
+    for (const prepared of loose) {
+      const host = nearestHost(byCmid.values(), prepared);
+      if (host) host[prepared.role] = prepared;
+      else rest.push(prepared);
+    }
+
+    // Ce qui n'a trouvé personne forme un groupe sans cmid, comme avant.
+    let plain: EventGroup | undefined;
+    for (const prepared of rest) {
+      if (!plain) {
+        plain = {};
+        groups.push(plain);
+      }
+      if (!plain[prepared.role]) plain[prepared.role] = prepared;
+    }
+    groups.push(...byCmid.values());
   }
 
   const byId = new Map<string, Deadline>();
-  for (const group of groups.values()) {
+  for (const group of groups) {
     // `due` prime sur `close` : si un module porte les deux, c'est la remise qui compte.
     const main = group.due ?? group.close;
     if (!main) continue; // « open » orphelin
@@ -271,6 +301,45 @@ export function deadlinesFromStudium(raw: RawStudiumCapture): Deadline[] {
 
 function asArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
+}
+
+/**
+ * À quel groupe rattacher un événement qui n'a pas de cmid ? À celui qui
+ * *attend* ce rôle — un groupe qui a déjà son « s'ouvre » n'en veut pas un
+ * second — et dont l'instant est le plus proche dans le bon sens : une
+ * ouverture précède sa fermeture, une fermeture suit son ouverture.
+ *
+ * Deux candidats à égalité parfaite de distance : on ne tranche pas. Deviner
+ * là où rien ne départage donnerait une fenêtre fausse, ce qui est pire que
+ * pas de fenêtre du tout.
+ *
+ * Limite assumée : deux activités homonymes aux fenêtres imbriquées dont les
+ * DEUX ouvertures auraient perdu leur URL pourraient être interverties. Il faut
+ * pour cela que `url` manque deux fois, alors que `calendar_event_exporter` le
+ * rend systématiquement pour un module — cas jamais observé.
+ */
+function nearestHost(
+  candidates: Iterable<EventGroup>,
+  prepared: PreparedEvent,
+): EventGroup | undefined {
+  let best: EventGroup | undefined;
+  let bestGap = Number.POSITIVE_INFINITY;
+  let tied = false;
+  for (const group of candidates) {
+    if (group[prepared.role]) continue; // ce rôle est déjà pourvu
+    const anchor = prepared.role === OPEN ? (group.due ?? group.close)?.timestart : group.open?.timestart;
+    if (anchor === undefined) continue; // rien à quoi se comparer
+    const gap = prepared.role === OPEN ? anchor - prepared.timestart : prepared.timestart - anchor;
+    if (gap <= 0) continue; // incohérent : une ouverture ne suit pas sa fermeture
+    if (gap < bestGap) {
+      best = group;
+      bestGap = gap;
+      tied = false;
+    } else if (gap === bestGap) {
+      tied = true;
+    }
+  }
+  return tied ? undefined : best;
 }
 
 /** Un événement brut → sa forme retenue, ou `undefined` s'il n'y a rien à en tirer. */
