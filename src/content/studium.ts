@@ -241,9 +241,14 @@ async function callMoodle(
   try {
     response = await doFetch(ajaxUrl(sesskey, methodname), {
       method: "POST",
-      // Même origine que la page : le cookie de session part tout seul.
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
+      // Chrome fait partir le fetch d'un content script avec l'origine de la page (même
+      // origine que StudiUM, cookie joint). `include` et `text/plain` n'y changent rien dans
+      // ce cas et retirent toute dépendance à cette règle si elle ne tenait pas : `include`
+      // joint le cookie même en cross-origin, `text/plain` (liste sûre CORS) évite un préflight
+      // OPTIONS que service.php ne saurait pas servir — et service.php lit php://input sans
+      // regarder le Content-Type (adrie-07, source Moodle, 2026-09-10).
+      credentials: "include",
+      headers: { "Content-Type": "text/plain" },
       body: ajaxBody(methodname, args),
     });
   } catch (e) {
