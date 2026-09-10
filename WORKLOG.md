@@ -18,7 +18,15 @@
   par `mergeStudium` et `removeDeadline`), `deadlineStatus` avec `done` qui prime sur tout.
 - adrie-07, `tampon-tests` (80b7e71, +4) : run interrompu → aucun tampon ; course entre onglets
   figée comme délibérée (12 requêtes si deux onglets simultanés, accepté).
-- En vol : adrie-29 `grades-parse` (`core/grades.ts`, tableau repéré par en-têtes texte ;
+- **Livré** (1e5a51c, 21 fichiers, 522 tests, zip 0.3.0 regénéré) : adrie-29 `grades-parse`
+  (621eee2, +29 : tableau repéré par en-têtes, `.rowtitle` préféré, colonnes `lettergrade`/`rank`
+  ignorées, deux fixtures synthétiques dont une page de connexion ; contrat corrigé : note absente =
+  chaîne vide, `depth` = crans d'indentation) et adrie-07 `grades-sync` (8be2a4d, +10 : GET par site
+  après une synchro calendrier réussie, opt-in `true` littéral seulement, `fetchText` séparé du POST
+  JSON, un site en erreur n'empêche pas les autres, URL sans `userid`). Non vérifié sur le terrain :
+  le HTML réel du carnet (fixture synthétique) — premier essai à faire par l'utilisateur avec
+  l'option activée.
+- Était en vol : adrie-29 `grades-parse` (`core/grades.ts`, tableau repéré par en-têtes texte ;
   structure lue en direct sur MAT1600-AB-A26, HTML brut non capturable par l'outil),
   adrie-07 `grades-sync` (GET des rapports par site après la synchro calendrier, opt-in
   seulement). Popup (intégratrice) : case à cocher sur chaque échéance, panneau Notes depuis
