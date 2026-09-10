@@ -26,6 +26,13 @@
   JSON, un site en erreur n'empêche pas les autres, URL sans `userid`). Non vérifié sur le terrain :
   le HTML réel du carnet (fixture synthétique) — premier essai à faire par l'utilisateur avec
   l'option activée.
+- **Terrain, 2026-09-10 fin d'après-midi** : option Notes activée par l'utilisateur sur sa vraie
+  session StudiUM → « les notes marchent, tout s'affiche ». Le parseur écrit sur une fixture
+  synthétique tient sur le HTML réel (noms, notes, barèmes, moyennes du groupe). Revue
+  pré-soumission (`docs/reviews/REVUE-PRE-SOUMISSION-2026-09-10.md`) traitée à e6b8aba : cinq
+  bloquants réglés, six captures refaites, « Non officiel » dans le résumé et le manifest.
+  Décision de l'utilisateur : soumettre 0.3.0 avec les notes. Reste dans la console : nom
+  d'éditeur, langue de la fiche, dépôt.
 - Était en vol : adrie-29 `grades-parse` (`core/grades.ts`, tableau repéré par en-têtes texte ;
   structure lue en direct sur MAT1600-AB-A26, HTML brut non capturable par l'outil),
   adrie-07 `grades-sync` (GET des rapports par site après la synchro calendrier, opt-in
