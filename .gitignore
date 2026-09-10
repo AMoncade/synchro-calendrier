@@ -3,3 +3,8 @@ dist/
 *.zip
 .vite/
 tests/fixtures/*.raw.html
+
+# impeccable : moteur binaire téléchargé à l'installation, jamais versionné
+.claude/skills/impeccable/scripts/bin/
+# gabarit de rendu temporaire
+tests/_harness.test.ts
