@@ -5,7 +5,14 @@
 //
 // Convention : un `it("DÉFAUT CONNU — …")` assère ce que le code fait
 // aujourd'hui et dit en commentaire ce qu'il devrait faire. Quand le défaut est
-// corrigé, le test DOIT casser — c'est ce qui le fait retirer.
+// corrigé, le test DOIT casser — c'est ce qui force à le basculer.
+//
+// État au 2026-09-10, après d7c57e1 : le routage des messages (axe 5) est réparé
+// et ses cas sont devenus des non-régressions ; l'écart de format d'instant
+// (axe 4) est compensé chez son consommateur et reste noté comme piège. Les
+// « DÉFAUT CONNU » restants (axes 1 et 2, identité des ids et fenêtre
+// open/close) sont confiés à la branche `studium-pipeline` ; ils basculeront à
+// son merge.
 //
 // Aucun test ne dépend de l'heure réelle ni du fuseau de la machine.
 
@@ -135,15 +142,19 @@ describe("fenêtre open/close", () => {
 // ---------------------------------------------------------------------------
 
 describe("format des instants passés à relativeTime", () => {
-  it("DÉFAUT CONNU — `syncedAt` est un instant local nu, `lastCapturedAt` un instant ISO avec fuseau", () => {
-    // `studiumStatusText` (popup.ts:832) passe `state.studium.lastSyncAt` à
-    // `relativeTime`, qui documente son paramètre comme « ISO 8601 avec fuseau »
-    // et le lit avec `Date.parse`. Un instant sans fuseau est interprété en heure
-    // *locale de la machine*, pas de Montréal.
+  it("PIÈGE — `syncedAt` est un instant local nu, `lastCapturedAt` un instant ISO avec fuseau", () => {
+    // Deux champs de `StoredState` portent des formats différents : `studium.lastSyncAt`
+    // et `lastErrorAt` viennent de `content/studium.ts:localNow()` et n'ont ni `Z` ni
+    // décalage ; `lastCapturedAt` vient de `content/synchro.ts` et est un vrai ISO.
+    //
+    // `relativeTime` (format/time.ts) documente son paramètre comme « ISO 8601 avec
+    // fuseau » et le lit avec `Date.parse`, qui interprète un instant nu en heure locale
+    // *de la machine*. Le popup compense depuis d7c57e1 (2026-09-10) avec `toIso()`, donc
+    // ce n'est plus un défaut vivant — mais l'écart de format demeure, et tout nouveau
+    // consommateur de `lastSyncAt` retombera dedans. Ce cas est là pour l'en avertir.
     const syncedAt = studiumLocalNow(new Date(Date.UTC(2026, 8, 10, 11, 5)));
     const capturedAt = new Date(Date.UTC(2026, 8, 10, 11, 5)).toISOString();
 
-    // ATTENDU APRÈS CORRECTION : les deux champs portent le même format.
     expect(syncedAt).not.toMatch(/(Z|[+-]\d{2}:\d{2})$/); // nu
     expect(capturedAt).toMatch(/Z$/); // avec fuseau
   });
@@ -216,12 +227,16 @@ describe("service worker : routage des messages de la phase 12", () => {
     expect(writes).toBe(1);
   });
 
-  // ATTENDU APRÈS CORRECTION pour les cinq cas ci-dessous : `{ ok: true }` et
-  // un écrit dans chrome.storage.local. ACTUEL : `handle()` (background/index.ts:45)
-  // n'a de `case` que pour SCHEDULE_CAPTURED, GET_STATE et CLEAR_ALL ; les cinq
-  // messages de la phase 12 tombent dans `default: return { ok: false }`. Les
-  // cinq fonctions importées ligne 7 (mergeStudium, markStudiumFailed,
-  // upsertDeadline, removeDeadline, setCourseLink) ne sont jamais appelées.
+  // Histoire, pas un état courant. Jusqu'au 2026-09-10 (d7c57e1), `handle()` n'avait
+  // de `case` que pour SCHEDULE_CAPTURED, GET_STATE et CLEAR_ALL : les cinq messages
+  // ci-dessous tombaient dans `default: return { ok: false }` et les cinq fonctions
+  // importées de core/deadlines n'étaient jamais appelées — fonctionnalité entièrement
+  // débranchée, 409 tests verts. Cause : une édition par `replace` dont l'ancre
+  // multi-lignes n'avait pas matché (fichier en CRLF), sans erreur.
+  //
+  // Depuis d7c57e1 : chacun est routé et écrit une fois, une garde d'exhaustivité
+  // (`const exhaustive: never = message`) empêche qu'un type ajouté à l'union `Message`
+  // reparte sans `case`. Ces cinq cas gardent leur valeur de non-régression.
   const routes: Array<[string, Message]> = [
     ["STUDIUM_SYNCED", { type: "STUDIUM_SYNCED", deadlines: [], courses: [], syncedAt: "2026-09-10T07:05" }],
     ["STUDIUM_FAILED", { type: "STUDIUM_FAILED", error: "sesskey-absent", at: "2026-09-10T07:05" }],
