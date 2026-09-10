@@ -30,7 +30,8 @@ modifier le document **et** consigner le changement dans le WORKLOG.
   un tableau).
 - **Fixtures anonymisées** avant commit (`node scripts/scrub-fixture.mjs`).
 - Permissions minimales : `storage`, `alarms`, hosts Synchro et StudiUM uniquement
-  (StudiUM depuis la phase 12 : calendrier et liste des cours, jamais les notes).
+  (StudiUM depuis la phase 12 : calendrier et liste des cours ; les notes seulement avec
+  l'option « Notes », désactivée par défaut — phase 13, ARCHITECTURE §8).
 - Aucune dépendance ajoutée sans une ligne de justification dans le WORKLOG.
 - Code et identifiants en anglais ; commentaires et interface en français.
 
