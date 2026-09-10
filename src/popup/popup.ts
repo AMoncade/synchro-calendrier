@@ -485,7 +485,11 @@ function deadlineRow(d: Deadline, view: View, now: Now, key: string): HTMLElemen
   title.append(document.createTextNode(d.title), el("span", "kind", ` · ${KIND_LABEL[d.kind]}`));
   const chevron = el("span", "chevron");
   chevron.append(icon("right", 12));
-  row.append(doneCheckbox(d, view), title, el("span", "when", done ? "fait" : dueLabel(d, now)), chevron);
+  // Titre et échéance empilés : côte à côte, un titre long et « ouvre aujourd'hui · avant jeu. 23:59 »
+  // se battaient pour la largeur et le titre passait sur quatre lignes.
+  const lines = el("div", "lines");
+  lines.append(title, el("div", "when", done ? "fait" : dueLabel(d, now)));
+  row.append(doneCheckbox(d, view), lines, chevron);
   row.addEventListener("click", () => toggleExpanded(key, view));
   return row;
 }

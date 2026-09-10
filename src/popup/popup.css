@@ -207,7 +207,9 @@ a { color: var(--accent); }
 .check::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); transform: scale(0); transition: transform 90ms; }
 .check:checked { border-color: var(--accent); }
 .check:checked::before { transform: scale(1); }
-.dl-row { grid-template-columns: 15px 1fr auto 12px; }
+.dl-row { grid-template-columns: 15px 1fr 12px; align-items: center; }
+.dl-row .lines { min-width: 0; }
+.dl-row .lines .when { margin-top: 2px; }
 .dl-row.status-done, .week-item.deadline.done { opacity: 0.55; }
 .dl-row.status-done .title, .week-item.deadline.done .label { text-decoration: line-through; }
 .week-item.deadline { grid-template-columns: 15px 78px 1fr auto 12px; }

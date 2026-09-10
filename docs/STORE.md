@@ -17,10 +17,10 @@ _(limite 75 caractères — 23 utilisés)_
 ## Résumé (limite 132 caractères)
 
 ```
-Exportez l'horaire du Centre étudiant UdeM en calendrier .ics, repérez les conflits et comptez les jours avant vos examens.
+Non officiel. Horaire du Centre étudiant UdeM en .ics, examens, conflits, échéances et notes StudiUM, sans rien transmettre.
 ```
 
-_(123 caractères)_
+_(121 caractères)_
 
 ## Description détaillée
 
@@ -53,7 +53,7 @@ VIE PRIVÉE
 
 Aucune donnée n'est transmise. L'extension lit la page Synchro que vous avez ouverte vous-même, garde le résultat dans le stockage local de Chrome, et ne communique avec aucun serveur. Pas de compte à créer, pas de clé, pas de statistiques d'usage. Vous effacez tout depuis le popup ou en désinstallant l'extension.
 
-Elle ne lit ni votre mot de passe ni aucune page autre que votre horaire, vos examens et le calendrier de StudiUM. Vos notes ne sont lues que si vous activez l'option « Notes », et restent sur votre ordinateur.
+Elle ne lit ni votre mot de passe ni aucune page autre que votre horaire, vos examens et le calendrier de StudiUM. Vos notes ne sont lues que si vous activez l'option « Notes », et restent sur votre ordinateur. Extension non officielle, sans lien avec l'Université de Montréal.
 
 LIMITES CONNUES
 
@@ -77,8 +77,13 @@ exacte du store évolue : à confirmer dans la console au moment de la soumissio
 Le store demande une phrase décrivant la fonction unique de l'extension :
 
 ```
-Lire l'horaire de cours et d'examens affiché dans le Centre étudiant de l'Université de Montréal, sur la session de l'utilisateur, pour le convertir en fichier calendrier .ics et en signaler les conflits.
+Rassembler en un seul endroit l'échéancier universitaire d'un étudiant de l'Université de Montréal — séances, examens, quiz et remises, et sur option ses notes — à partir des pages Synchro et StudiUM qu'il a lui-même ouvertes, et l'exporter en calendrier .ics. Tout est lu et conservé dans le navigateur ; rien n'est transmis.
 ```
+
+Les échéances StudiUM, l'export .ics et l'onglet Notes sont trois faces du même objet
+(l'échéancier de l'étudiant), pas trois produits. Décision de l'utilisateur (2026-09-10) :
+soumettre avec les notes, en option désactivée par défaut ; si la revue tique là-dessus,
+on avisera.
 
 ## Justification des autorisations
 
@@ -99,7 +104,13 @@ Réveille le service worker toutes les 15 minutes pour recalculer le nombre de c
 ### Autorisation d'hôte `https://*.synchro.umontreal.ca/*`
 
 ```
-Seul domaine où l'horaire de l'étudiant est affiché. Le script de contenu s'y exécute pour lire le texte des pages « Centre étudiant » et « Votre horaire cours » déjà ouvertes par l'utilisateur, et en extraire les sigles, jours, heures, locaux et dates d'examen. Aucun autre domaine n'est demandé et aucune requête réseau n'est émise.
+Seul domaine où l'horaire de l'étudiant est affiché. Le script de contenu s'y exécute pour lire le texte des pages « Centre étudiant » et « Votre horaire cours » déjà ouvertes par l'utilisateur, et en extraire les sigles, jours, heures, locaux et dates d'examen. Aucune requête réseau n'est émise vers ce domaine : seule la page déjà affichée est lue.
+```
+
+### Autorisation d'hôte `https://studium.umontreal.ca/*`
+
+```
+Plateforme de cours de l'Université (Moodle) où sont publiés les quiz, remises et notes de l'étudiant. Le script de contenu s'exécute sur les pages StudiUM que l'utilisateur ouvre lui-même et interroge, avec sa session déjà ouverte et sans jeton, l'API de calendrier interne de Moodle (POST vers /lib/ajax/service.php : cinq vues mensuelles et la liste des sites de cours, au plus une fois par 30 minutes) pour en tirer les échéances. Si l'utilisateur active l'option « Notes » (désactivée par défaut), le script lit aussi le rapport de notes de chacun de ses sites de cours (GET vers /grade/report/user/index.php, une requête par site, dans la même synchronisation). Toutes ces requêtes vont vers studium.umontreal.ca uniquement, avec les identifiants de session du navigateur ; rien n'est transmis ailleurs et aucune donnée n'est stockée hors de chrome.storage.local.
 ```
 
 ### Absence de `tabs`, `scripting` et `downloads`
@@ -134,12 +145,19 @@ d'horaire de Synchro (« website content »), donc la case se coche, et le champ
 justification explique le traitement local. Une case à « non » serait une déclaration
 inexacte, motif de rejet ou de retrait.
 
-**Note à joindre.** L'extension lit le contenu de la page « Votre horaire cours » (et du
-résumé du Centre étudiant) de Synchro, ouverte par l'utilisateur lui-même : sigles, sections,
-jours, heures, locaux, dates de séances et d'examens. Ce contenu est conservé uniquement dans
-`chrome.storage.local`, sur l'appareil de l'utilisateur, pour l'affichage du popup et la
-génération locale du fichier .ics. Rien n'est transmis à l'auteur ni à un tiers ; aucune
-requête réseau n'est émise. L'utilisateur efface tout depuis le popup ou en désinstallant.
+**Note à joindre.** L'extension lit, sur les pages que l'utilisateur ouvre lui-même :
+(1) le contenu de la page « Votre horaire cours » et du résumé du Centre étudiant de Synchro
+— sigles, sections, jours, heures, locaux, dates de séances et d'examens ; (2) le calendrier
+de StudiUM (Moodle) par son API interne, avec la session déjà ouverte — échéances des quiz et
+remises (nom, dates d'ouverture et de fermeture, lien vers l'activité) et la liste des sites
+de cours ; (3) seulement si l'utilisateur active l'option « Notes », désactivée par défaut,
+le rapport de notes de chacun de ses sites StudiUM — éléments d'évaluation, notes, valeurs
+possibles, pourcentages, moyennes du groupe. Tout est conservé uniquement dans
+`chrome.storage.local`, sur l'appareil, pour l'affichage du popup et la génération locale du
+fichier .ics. Les seules requêtes réseau vont vers studium.umontreal.ca, jamais vers l'auteur
+ni un tiers ; aucun jeton ni mot de passe n'est enregistré. L'utilisateur efface tout depuis
+le popup (« Effacer les données » ; désactiver « Notes » efface les notes) ou en
+désinstallant.
 
 Les trois certifications demandées sont toutes vraies et doivent être cochées :
 
@@ -147,8 +165,10 @@ Les trois certifications demandées sont toutes vraies et doivent être cochées
 - elles ne servent à aucune fin étrangère à la fonction principale de l'extension ;
 - elles ne servent ni à évaluer la solvabilité, ni à des fins de prêt.
 
-**URL de la politique de confidentialité** : lien vers `docs/PRIVACY.md` sur le dépôt
-public, à remplacer par une page hébergée si le dépôt devient privé.
+**URL de la politique de confidentialité** : la page rendue du dépôt public,
+https://github.com/AMoncade/synchro-calendrier/blob/main/docs/PRIVACY.md (le lien « raw »
+répond aussi, mais en markdown brut). À remplacer par une page hébergée si le dépôt devient
+privé.
 
 ## Captures d'écran
 
@@ -156,11 +176,17 @@ Captures **1280 × 800 px**, PNG, produites dans `docs/store/` par rendu du popu
 extension sur l'horaire réel A2026 anonymisé (fixtures), sans matricule ni nom. Ordre de
 téléversement, la première étant l'image mise en avant :
 
-1. **Aujourd'hui** — cours en cours, suivant, temps restant, local et pavillon.
-2. **Semaine** — liste par jour, congé nommé, locaux à droite.
-3. **Examens** — intras et finaux, jours restants, alerte de grappe.
+1. **Aujourd'hui** — cours en cours, suivant, temps restant, local et pavillon, échéances
+   des sept prochains jours.
+2. **Semaine** — liste par jour, congé nommé, quiz et remises StudiUM à cocher.
+3. **Examens** — intras et finaux, jours restants.
 4. **Détail d'un cours** — plages de dates, copier le local, carte du campus.
 5. **Demain** — bascule automatique en soirée.
+6. **Notes** — carnet StudiUM par cours avec la moyenne du groupe, option désactivée par
+   défaut.
+
+Refaites le 2026-09-10 sur le build 0.3.0 (gabarit : popup servi hors extension, `chrome.*`
+remplacé, horloge figée, capture 1152 × 720 mise au format par `npm run store-shots`).
 
 À produire ensuite à la main si souhaité : le résultat dans Google Agenda après import du
 `.ics` (vue semaine, un lundi férié vide).
