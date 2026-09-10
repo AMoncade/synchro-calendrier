@@ -350,10 +350,9 @@ function renderWeek(view: View, now: Now): void {
       const key = `${o.date}|${o.start}|${o.label}`;
       const open = ui.expanded === key;
       const row = el("div", `week-item${o.kind === "examen" ? " exam" : ""}${open ? " open" : ""}`);
-      row.style.borderLeftColor = colorOf(o.courseCode);
       const chevron = el("span", "chevron");
       chevron.append(icon("right", 12));
-      row.append(el("span", "when", `${o.start}–${o.end}`), el("span", "label", denseLabel(o)), el("span", "where", parseLocation(o.location).salle || formatLocation(o.location)), chevron);
+      row.append(swatch(o.courseCode), el("span", "when", `${o.start}–${o.end}`), el("span", "label", denseLabel(o)), el("span", "where", parseLocation(o.location).salle || formatLocation(o.location)), chevron);
       row.addEventListener("click", () => toggleExpanded(key, view));
       day.append(row);
       if (ui.expanded === key) day.append(detailsPanel(o, view));
@@ -363,13 +362,11 @@ function renderWeek(view: View, now: Now): void {
       const open = ui.expanded === key;
       const code = resolveCourseCode(d, view.state.courseLinks);
       const row = el("div", `week-item deadline${open ? " open" : ""}`);
-      row.style.borderLeftColor = code ? colorOf(code) : "var(--line)";
       const chevron = el("span", "chevron");
       chevron.append(icon("right", 12));
-      const label = el("span", "label");
-      if (code) label.append(swatch(code));
-      label.append(document.createTextNode(`${code ? `${sigle(code)} · ` : ""}${d.title}`));
-      row.append(el("span", "when", d.due.slice(11)), label, el("span", "where", KIND_LABEL[d.kind]), chevron);
+      const label = el("span", "label", `${code ? `${sigle(code)} · ` : ""}${d.title}`);
+      const dot = code ? swatch(code) : el("span", "swatch");
+      row.append(dot, el("span", "when", d.due.slice(11)), label, el("span", "where", KIND_LABEL[d.kind]), chevron);
       row.addEventListener("click", () => toggleExpanded(key, view));
       day.append(row);
       if (open) day.append(deadlineDetails(d, view));
@@ -462,7 +459,6 @@ function deadlineRow(d: Deadline, view: View, now: Now, key: string): HTMLElemen
   const status = deadlineStatus(d, now.dateTime);
   const code = resolveCourseCode(d, view.state.courseLinks);
   const row = el("div", `dl-row status-${status}${ui.expanded === key ? " open" : ""}`);
-  row.style.borderLeftColor = code ? colorOf(code) : "var(--line)";
   const title = el("span", "title");
   if (code) title.append(swatch(code), document.createTextNode(`${sigle(code)} · `));
   title.append(document.createTextNode(d.title), el("span", "kind", ` · ${KIND_LABEL[d.kind]}`));
