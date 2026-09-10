@@ -5,11 +5,14 @@ import {
   allDeadlines,
   deadlineStatus,
   deadlinesOn,
+  isDone,
   markStudiumFailed,
   mergeStudium,
+  pruneDone,
   removeDeadline,
   resolveCourseCode,
   setCourseLink,
+  setDeadlineDone,
   upcomingDeadlines,
   upsertDeadline,
   validateManual,
@@ -371,6 +374,15 @@ describe("upcomingDeadlines", () => {
   it("refuse un instant mal formé plutôt que de filtrer de travers", () => {
     expect(() => upcomingDeadlines(list, "10 septembre", 7)).toThrow(RangeError);
   });
+
+  it("ne retire pas les échéances cochées : c'est le popup qui décide de les barrer", () => {
+    // La sélection ne connaît pas l'état ; elle prend une liste et un instant.
+    // Filtrer ici ferait disparaître une case à décocher.
+    const coche = studium("pile", "2026-09-10T10:00");
+
+    expect(upcomingDeadlines([coche], now, 7)).toEqual([coche]);
+    expect(deadlinesOn([coche], "2026-09-10")).toEqual([coche]);
+  });
 });
 
 describe("deadlinesOn", () => {
@@ -447,6 +459,166 @@ describe("deadlineStatus", () => {
 
   it("refuse un instant mal formé", () => {
     expect(() => deadlineStatus(studium("1", "2026-09-12T23:59"), "hier")).toThrow(RangeError);
+  });
+
+  it("« fait » prime sur due-today", () => {
+    const d = studium("1", "2026-09-10T23:59");
+
+    expect(deadlineStatus(d, "2026-09-10T10:00")).toBe("due-today");
+    expect(deadlineStatus(d, "2026-09-10T10:00", true)).toBe("done");
+  });
+
+  it("« fait » prime sur overdue : une remise cochée en retard n'alarme plus", () => {
+    const d = studium("1", "2026-09-08T23:59");
+
+    expect(deadlineStatus(d, "2026-09-10T10:00")).toBe("overdue");
+    expect(deadlineStatus(d, "2026-09-10T10:00", true)).toBe("done");
+  });
+
+  it("« fait » prime sur open et sur upcoming", () => {
+    const ouverte = studium("1", "2026-09-12T23:59", { start: "2026-09-08T08:00" });
+    const aVenir = studium("2", "2026-09-12T23:59");
+
+    expect(deadlineStatus(ouverte, "2026-09-10T10:00", true)).toBe("done");
+    expect(deadlineStatus(aVenir, "2026-09-10T10:00", true)).toBe("done");
+  });
+
+  it("`done` faux ou absent ne change rien au statut calculé", () => {
+    const d = studium("1", "2026-09-10T23:59");
+
+    expect(deadlineStatus(d, "2026-09-10T10:00", false)).toBe("due-today");
+    expect(deadlineStatus(d, "2026-09-10T10:00", undefined)).toBe("due-today");
+  });
+
+  it("un instant mal formé est refusé même quand l'échéance est cochée", () => {
+    // La case cochée ne doit pas masquer une erreur d'appelant.
+    expect(() => deadlineStatus(studium("1", "2026-09-12T23:59"), "hier", true)).toThrow(RangeError);
+  });
+
+  it("le statut se lit avec isDone, comme le popup le fera", () => {
+    const d = studium("1", "2026-09-08T23:59");
+    const state = setDeadlineDone(stateWith([d]), d.id, true);
+
+    expect(deadlineStatus(d, "2026-09-10T10:00", isDone(state, d.id))).toBe("done");
+    expect(deadlineStatus(d, "2026-09-10T10:00", isDone(stateWith([d]), d.id))).toBe("overdue");
+  });
+});
+
+// --- échéances cochées « fait » (phase 13) ----------------------------------
+
+describe("setDeadlineDone / isDone", () => {
+  it("coche, puis dit que c'est coché", () => {
+    const after = setDeadlineDone(stateWith([studium("1", "2026-09-15T23:59")]), "studium:1", true);
+
+    expect(after.doneDeadlines).toEqual(["studium:1"]);
+    expect(isDone(after, "studium:1")).toBe(true);
+  });
+
+  it("cocher deux fois ne met pas l'id deux fois", () => {
+    const once = setDeadlineDone(stateWith([studium("1", "2026-09-15T23:59")]), "studium:1", true);
+    const twice = setDeadlineDone(once, "studium:1", true);
+
+    expect(twice.doneDeadlines).toEqual(["studium:1"]);
+  });
+
+  it("décocher retire l'id, et décocher deux fois ne fait rien", () => {
+    const state = stateWith([studium("1", "2026-09-15T23:59"), studium("2", "2026-09-16T23:59")]);
+    const coche = setDeadlineDone(setDeadlineDone(state, "studium:1", true), "studium:2", true);
+    const decoche = setDeadlineDone(coche, "studium:1", false);
+
+    expect(decoche.doneDeadlines).toEqual(["studium:2"]);
+    expect(setDeadlineDone(decoche, "studium:1", false).doneDeadlines).toEqual(["studium:2"]);
+    expect(isDone(decoche, "studium:1")).toBe(false);
+  });
+
+  it("ne mute pas l'état d'entrée, même quand rien ne change", () => {
+    const before = setDeadlineDone(stateWith([studium("1", "2026-09-15T23:59")]), "studium:1", true);
+    const snapshot = JSON.parse(JSON.stringify(before));
+    const rien = setDeadlineDone(before, "studium:1", true);
+
+    expect(before).toEqual(snapshot);
+    expect(rien).not.toBe(before);
+  });
+
+  it("un état antérieur à la phase 13 n'a rien de coché", () => {
+    const before: StoredState = { schedules: {}, sources: {}, lastCapturedAt: null, lastSource: null };
+
+    expect(isDone(before, "studium:1")).toBe(false);
+    expect(setDeadlineDone(before, "studium:1", true).doneDeadlines).toEqual(["studium:1"]);
+    expect(setDeadlineDone(before, "studium:1", false).doneDeadlines ?? []).toEqual([]);
+  });
+});
+
+describe("pruneDone", () => {
+  it("retire les ids qui ne désignent plus aucune échéance", () => {
+    const state = setDeadlineDone(stateWith([studium("1", "2026-09-15T23:59")]), "studium:1", true);
+    const orphelin = { ...state, doneDeadlines: [...(state.doneDeadlines ?? []), "studium:disparu"] };
+
+    expect(pruneDone(orphelin).doneDeadlines).toEqual(["studium:1"]);
+  });
+
+  it("ne touche à rien quand tout est encore là", () => {
+    const state = setDeadlineDone(stateWith([studium("1", "2026-09-15T23:59")]), "studium:1", true);
+
+    expect(pruneDone(state).doneDeadlines).toEqual(["studium:1"]);
+  });
+
+  it("une synchronisation ne décoche pas une échéance toujours présente", () => {
+    const coche = setDeadlineDone(
+      mergeStudium(stateWith([]), [studium("1", "2026-09-15T23:59")], [], "2026-09-10T10:00"),
+      "studium:1",
+      true,
+    );
+    const resynchro = mergeStudium(coche, [studium("1", "2026-09-15T23:59"), studium("2", "2026-09-20T23:59")], [], "2026-09-11T10:00");
+
+    expect(resynchro.doneDeadlines).toEqual(["studium:1"]);
+    expect(isDone(resynchro, "studium:1")).toBe(true);
+  });
+
+  it("une échéance disparue de StudiUM emporte sa coche à la synchronisation suivante", () => {
+    const coche = setDeadlineDone(
+      mergeStudium(stateWith([]), [studium("1", "2026-09-15T23:59")], [], "2026-09-10T10:00"),
+      "studium:1",
+      true,
+    );
+    const sansElle = mergeStudium(coche, [studium("2", "2026-09-20T23:59")], [], "2026-09-11T10:00");
+
+    expect(sansElle.doneDeadlines).toEqual([]);
+  });
+
+  it("retirer une échéance emporte sa coche — manuelle", () => {
+    const coche = setDeadlineDone(stateWith([manuel("a", "2026-09-18T14:00")]), "manuel:a", true);
+
+    expect(removeDeadline(coche, "manuel:a").doneDeadlines).toEqual([]);
+  });
+
+  it("masquer une StudiUM cochée la retire des deux listes, et la synchro ne la ramène pas", () => {
+    // Voulu : la coche suit l'échéance. Si l'utilisateur la démasque un jour,
+    // elle revient décochée — `hiddenDeadlines` suffit à ne pas la réafficher.
+    const coche = setDeadlineDone(stateWith([studium("1", "2026-09-15T23:59")]), "studium:1", true);
+    const masque = removeDeadline(coche, "studium:1");
+
+    expect(masque.doneDeadlines).toEqual([]);
+    expect(masque.hiddenDeadlines).toEqual(["studium:1"]);
+
+    const resynchro = mergeStudium(masque, [studium("1", "2026-09-15T23:59")], [], "2026-09-11T10:00");
+    expect(resynchro.deadlines?.["studium:1"]).toBeUndefined();
+    expect(resynchro.doneDeadlines).toEqual([]);
+  });
+
+  it("une manuelle cochée survit à une synchronisation StudiUM", () => {
+    const coche = setDeadlineDone(stateWith([manuel("a", "2026-09-18T14:00")]), "manuel:a", true);
+    const apres = mergeStudium(coche, [studium("1", "2026-09-15T23:59")], [], "2026-09-10T10:00");
+
+    expect(apres.doneDeadlines).toEqual(["manuel:a"]);
+  });
+
+  it("un état antérieur à la phase 13 traverse le prune sans rien exiger de lui", () => {
+    const before: StoredState = { schedules: {}, sources: {}, lastCapturedAt: null, lastSource: null };
+
+    expect(pruneDone(before).doneDeadlines).toBeUndefined();
+    expect(mergeStudium(before, [studium("1", "2026-09-15T23:59")], [], "2026-09-10T10:00").doneDeadlines).toBeUndefined();
+    expect(removeDeadline(before, "studium:1").doneDeadlines).toBeUndefined();
   });
 });
 
