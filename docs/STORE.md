@@ -32,7 +32,7 @@ CE QU'ELLE FAIT
 • Aujourd'hui — le cours en cours, le suivant, le temps qu'il reste, le local et le pavillon. Le soir, la vue passe à demain ; le week-end, au prochain jour de cours.
 • Semaine — vos séances jour par jour, congés et relâche nommés, navigation d'une semaine à l'autre, détails au clic (plages de dates, copier le local, carte du campus).
 • Examens — intras et finaux séparés, jours restants, alerte quand plusieurs examens tombent en quelques jours, ajout d'un examen à Google Agenda en un clic.
-• Export .ics — vos séances hebdomadaires deviennent des événements récurrents avec le local et le volet, vos examens des événements datés avec rappels 24 h et 1 h avant. Importez le fichier dans Google Agenda, Outlook ou Apple Calendrier.
+• Export .ics — vos séances hebdomadaires deviennent des événements récurrents avec le local et le volet, vos examens des événements datés avec rappels 24 h et 1 h avant (rappel de 15 min avant chaque cours en option). Importez le fichier dans Google Agenda, Outlook ou Apple Calendrier.
 • Semaine de relâche et jours fériés retirés — le calendrier universitaire de l'UdeM est intégré, trimestre par trimestre. Pas de cours fantôme un lundi férié.
 • Conflits d'horaire — deux séances qui se chevauchent ou un cours pendant un examen : signalé.
 • Badge — l'icône de la barre d'outils affiche le nombre de cours qu'il vous reste aujourd'hui.
@@ -54,7 +54,7 @@ Elle ne lit ni votre mot de passe, ni vos notes, ni aucune page autre que votre 
 
 LIMITES CONNUES
 
-• Le calendrier universitaire est codé trimestre par trimestre : Automne 2026, Hiver 2027 et Été 2027 sont couverts.
+• Le calendrier universitaire est codé trimestre par trimestre : Automne 2026 et Hiver 2027 sont couverts ; Été 2027 seulement en partie (fériés et bornes, sans dates de cours ni d'examens).
 • Les dates de début et de fin de cours proviennent du calendrier de la Faculté des arts et des sciences ; une autre faculté peut différer de quelques jours.
 • L'export est une photo de votre horaire, pas une synchronisation continue : réexportez après un changement de section.
 • Interface française de Synchro seulement.
@@ -120,13 +120,23 @@ Onglet « Confidentialité » de la console développeur.
 | Position | Non |
 | Historique de navigation | Non |
 | Activité de l'utilisateur | Non |
-| Contenu de sites web | Non — voir la note ci-dessous |
+| Contenu de sites web | **Oui** — voir la note ci-dessous |
 
-**Note à joindre.** L'extension lit le contenu des pages d'horaire de Synchro, mais ne le
-*collecte* pas au sens du store : rien n'est transmis à l'auteur ni à un tiers, tout reste
-dans `chrome.storage.local` sur l'appareil de l'utilisateur. Le store définit la collecte
-comme une transmission hors de l'appareil ; il faut donc répondre « non » et expliquer le
-traitement local dans ce champ.
+**Pourquoi « oui ».** La politique du store exige de déclarer toute donnée *traitée*, y
+compris localement : « Extensions are required to disclose how they handle user data, even
+when data is processed or stored locally on a user's device and is not transmitted to
+external servers or third parties » (developer.chrome.com/docs/webstore/program-policies/
+user-data-faq, consulté le 2026-09-09). L'extension lit et conserve le contenu des pages
+d'horaire de Synchro (« website content »), donc la case se coche, et le champ de
+justification explique le traitement local. Une case à « non » serait une déclaration
+inexacte, motif de rejet ou de retrait.
+
+**Note à joindre.** L'extension lit le contenu de la page « Votre horaire cours » (et du
+résumé du Centre étudiant) de Synchro, ouverte par l'utilisateur lui-même : sigles, sections,
+jours, heures, locaux, dates de séances et d'examens. Ce contenu est conservé uniquement dans
+`chrome.storage.local`, sur l'appareil de l'utilisateur, pour l'affichage du popup et la
+génération locale du fichier .ics. Rien n'est transmis à l'auteur ni à un tiers ; aucune
+requête réseau n'est émise. L'utilisateur efface tout depuis le popup ou en désinstallant.
 
 Les trois certifications demandées sont toutes vraies et doivent être cochées :
 

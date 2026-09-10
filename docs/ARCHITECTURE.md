@@ -3,9 +3,10 @@
 ## 1. Objectif
 
 Extension WebExtension (Manifest V3) qui, sur la session Synchro déjà ouverte de
-l'étudiant, lit la page Horaire et la page Examens, produit un JSON propre, génère un ICS
-(récurrences hebdomadaires + exclusions relâche/fériés + examens), détecte les conflits et
-affiche un popup avec compte à rebours. Zéro serveur, zéro clé, stockage local seulement.
+l'étudiant, lit la page « Votre horaire cours » (séances et examens dans le même tableau)
+et le résumé du Centre étudiant, produit un JSON propre, génère un ICS (récurrences
+hebdomadaires + exclusions relâche/fériés + examens avec rappels), détecte les conflits et
+affiche un popup à trois onglets. Zéro serveur, zéro clé, stockage local seulement.
 
 ## 2. Contrat de données
 

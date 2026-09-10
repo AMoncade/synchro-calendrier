@@ -1,9 +1,10 @@
 # Politique de confidentialité — Synchro Calendrier UdeM
 
-**Données lues.** L'extension lit, dans votre navigateur, le contenu des pages « Horaire »
-et « Horaire des examens » du Centre étudiant de l'Université de Montréal (Synchro), et
-uniquement lorsque vous les affichez : sigles de cours, sections, jours, heures, locaux,
-dates. Elle ne lit ni votre mot de passe, ni vos notes, ni aucune autre page.
+**Données lues.** L'extension lit, dans votre navigateur, le contenu de la page « Votre
+horaire cours » (vue Liste) et du résumé d'horaire du Centre étudiant de l'Université de
+Montréal (Synchro), uniquement lorsque vous les affichez : sigles de cours, sections, jours,
+heures, locaux, dates de séances et d'examens (les examens figurent dans le même tableau
+que les séances). Elle ne lit ni votre mot de passe, ni vos notes, ni aucune autre page.
 
 **Stockage.** L'horaire extrait est conservé dans le stockage local de l'extension
 (`chrome.storage.local`), sur votre ordinateur. Vous pouvez l'effacer à tout moment depuis
