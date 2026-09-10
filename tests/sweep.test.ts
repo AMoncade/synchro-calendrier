@@ -114,7 +114,9 @@ describe("identité des ids d'une synchro à l'autre", () => {
 // ---------------------------------------------------------------------------
 
 describe("fenêtre open/close", () => {
-  it("DÉFAUT CONNU — une URL sur un seul des deux événements sépare le couple et perd la fenêtre", () => {
+  // Corrigé le 2026-09-10 par adrie-29 (studium-pipeline 8622ebe) : panier courseid + slug,
+  // cmid décidé sur le groupe. Les deux cas ci-dessous étaient « DÉFAUT CONNU ».
+  it("une URL sur un seul des deux événements ne sépare plus le couple : fenêtre conservée", () => {
     // `prepareEvent` calcule la clé de regroupement à partir du cmid *de chaque
     // événement*. Si « s'ouvre » porte l'URL et « se termine » non, les deux
     // partent dans deux groupes : l'open devient orphelin (jeté), le close donne
@@ -124,8 +126,8 @@ describe("fenêtre open/close", () => {
     // ATTENDU APRÈS CORRECTION : une échéance avec `start` (le couple recollé
     // par site + nom quand un des deux n'a pas de cmid).
     expect(deadlines).toHaveLength(1);
-    expect(deadlines[0]?.id).toBe("studium:4242:quiz-tp3");
-    expect(deadlines[0]?.start).toBeUndefined(); // fenêtre perdue en silence
+    expect(deadlines[0]?.id).toBe("studium:6624079"); // le cmid du membre qui en a un
+    expect(deadlines[0]?.start).toBeDefined();
   });
 
   it("l'inverse aussi : URL sur « se termine » seulement", () => {
@@ -133,7 +135,7 @@ describe("fenêtre open/close", () => {
 
     expect(deadlines).toHaveLength(1);
     expect(deadlines[0]?.id).toBe("studium:6624079");
-    expect(deadlines[0]?.start).toBeUndefined();
+    expect(deadlines[0]?.start).toBeDefined();
   });
 });
 
