@@ -64,10 +64,10 @@ describe("mergeStudium", () => {
   });
 
   it("écrit le statut StudiUM et efface l'erreur précédente", () => {
-    const before = stateWith([], { studium: { lastSyncAt: "2026-09-01T08:00", lastError: "sesskey absent", courses: [] } });
+    const before = stateWith([], { studium: { lastSyncAt: "2026-09-01T08:00", lastError: "sesskey absent", lastErrorAt: "2026-09-02T08:00", courses: [] } });
     const after = mergeStudium(before, [], [SITE], "2026-09-10T10:00");
 
-    expect(after.studium).toEqual({ lastSyncAt: "2026-09-10T10:00", lastError: null, courses: [SITE] });
+    expect(after.studium).toEqual({ lastSyncAt: "2026-09-10T10:00", lastError: null, lastErrorAt: null, courses: [SITE] });
   });
 
   it("n'installe pas une échéance masquée par l'utilisateur", () => {
@@ -108,22 +108,22 @@ describe("mergeStudium", () => {
 describe("markStudiumFailed", () => {
   it("garde les échéances et la date de la dernière synchro réussie", () => {
     const before = stateWith([studium("1", "2026-09-15T23:59"), manuel("a", "2026-09-18T14:00")], {
-      studium: { lastSyncAt: "2026-09-08T09:00", lastError: null, courses: [SITE] },
+      studium: { lastSyncAt: "2026-09-08T09:00", lastError: null, lastErrorAt: null, courses: [SITE] },
     });
     const after = markStudiumFailed(before, "invalidsesskey", "2026-09-10T10:05");
 
     expect(after.deadlines).toEqual(before.deadlines);
-    expect(after.studium).toEqual({ lastSyncAt: "2026-09-08T09:00", lastError: "invalidsesskey", courses: [SITE] });
+    expect(after.studium).toEqual({ lastSyncAt: "2026-09-08T09:00", lastError: "invalidsesskey", lastErrorAt: "2026-09-10T10:05", courses: [SITE] });
   });
 
   it("échoue avant toute synchro réussie : lastSyncAt reste null", () => {
     const after = markStudiumFailed(stateWith([]), "réseau", "2026-09-10T10:05");
 
-    expect(after.studium).toEqual({ lastSyncAt: null, lastError: "réseau", courses: [] });
+    expect(after.studium).toEqual({ lastSyncAt: null, lastError: "réseau", lastErrorAt: "2026-09-10T10:05", courses: [] });
   });
 
   it("ne mute pas l'état d'entrée", () => {
-    const before = stateWith([], { studium: { lastSyncAt: "2026-09-08T09:00", lastError: null, courses: [] } });
+    const before = stateWith([], { studium: { lastSyncAt: "2026-09-08T09:00", lastError: null, lastErrorAt: null, courses: [] } });
     const snapshot = JSON.parse(JSON.stringify(before));
     markStudiumFailed(before, "boum", "2026-09-10T10:05");
 

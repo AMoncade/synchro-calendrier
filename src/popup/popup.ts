@@ -7,10 +7,11 @@
 import { excludedDates, getTermCalendar } from "../core/calendar-udem";
 import { classesRemainingToday, examClusters, minutesOfTime } from "../core/alerts";
 import { findConflicts } from "../core/conflicts";
+import { allDeadlines, deadlineStatus, deadlinesOn, resolveCourseCode, upcomingDeadlines, validateManual } from "../core/deadlines";
 import { addDays, expandSchedule } from "../core/expand";
 import { googleCalendarUrl } from "../core/gcal";
 import { generateIcs } from "../core/ics";
-import type { Exam, Occurrence, Schedule } from "../core/model";
+import type { Deadline, DeadlineKind, Exam, Occurrence, Schedule } from "../core/model";
 import { parsePasted } from "../core/parse";
 import { currentTerm } from "../core/store";
 import { buildTodayView, type TodayItem, type TodayView } from "../core/today";
@@ -37,6 +38,9 @@ import { bullet, icon } from "./icons";
 const SYNCHRO_URL = "https://academique-dmz.synchro.umontreal.ca/";
 const REPORT_URL = "https://github.com/AMoncade/synchro-calendrier/issues/new";
 const CAMPUS_MAP_URL = "https://plancampus.umontreal.ca/montreal/";
+const STUDIUM_URL = "https://studium.umontreal.ca/my/";
+/** Échéances annoncées sous Aujourd'hui : les N prochains jours. */
+const DEADLINE_HORIZON_DAYS = 7;
 const UI_KEY = "synchro-calendrier.ui";
 const TAB_RESET_MS = 4 * 3600 * 1000;
 const REFRESH_MS = 30_000;
@@ -124,7 +128,12 @@ interface View {
   schedule: Schedule;
   occurrences: Occurrence[];
   excluded: string[];
+  /** Échéances (StudiUM + manuelles), toutes sources, triées par `due`. */
+  deadlines: Deadline[];
 }
+
+const KIND_LABEL: Record<DeadlineKind, string> = { quiz: "Quiz", devoir: "Remise", evenement: "Événement", autre: "Autre" };
+const SOURCE_LABEL: Record<Deadline["source"], string> = { studium: "StudiUM", manuel: "Ajouté à la main" };
 
 let palette = new Map<string, string>();
 const colorOf = (code: string): string => palette.get(code) ?? "var(--muted)";
@@ -207,6 +216,20 @@ function renderToday(view: View, now: Now): void {
   }
   const conflicts = findConflicts(view.occurrences).filter((c) => c.date >= now.date);
   if (conflicts.length) panel.append(withIcon("warning", `${conflicts.length} chevauchement${conflicts.length > 1 ? "s" : ""} à venir — voir l'onglet Semaine.`, "warn"));
+
+  const soon = upcomingDeadlines(view.deadlines, now.dateTime, DEADLINE_HORIZON_DAYS);
+  const openNow = view.deadlines.filter((d) => deadlineStatus(d, now.dateTime) === "open" && !soon.includes(d));
+  const shown = [...soon, ...openNow];
+  if (shown.length) {
+    const box = el("div", "deadlines");
+    box.append(el("h3", "", "Échéances"));
+    for (const d of shown) {
+      const key = `dl|${d.id}`;
+      box.append(deadlineRow(d, view, now, key));
+      if (ui.expanded === key) box.append(deadlineDetails(d, view));
+    }
+    panel.append(box);
+  }
 
   // Aperçu : le reste de la semaine civile du jour affiché (jusqu'au dimanche),
   // seulement quand la journée est creuse — sinon il tomberait sous le pli.
@@ -302,7 +325,8 @@ function renderWeek(view: View, now: Now): void {
   let any = false;
   days.forEach((date, i) => {
     const items = byDay.get(date) ?? [];
-    if (items.length === 0 && i >= 5) return; // samedi/dimanche seulement s'il y a quelque chose
+    const dayDeadlines = deadlinesOn(view.deadlines, date);
+    if (items.length === 0 && dayDeadlines.length === 0 && i >= 5) return; // samedi/dimanche seulement s'il y a quelque chose
     any = any || items.length > 0;
     const cls = date === now.date ? " today" : date < now.date ? " past" : "";
     const day = el("div", `day${cls}`);
@@ -319,6 +343,23 @@ function renderWeek(view: View, now: Now): void {
       row.addEventListener("click", () => toggleExpanded(key, view));
       day.append(row);
       if (ui.expanded === key) day.append(detailsPanel(o, view));
+    }
+    for (const d of dayDeadlines) {
+      const key = `dl|${d.id}`;
+      const open = ui.expanded === key;
+      const code = resolveCourseCode(d, view.state.courseLinks);
+      const row = el("div", `week-item deadline${open ? " open" : ""}`);
+      row.style.borderLeftColor = code ? colorOf(code) : "var(--line)";
+      const chevron = el("span", "chevron");
+      chevron.append(icon("right", 12));
+      const label = el("span", "label");
+      if (code) label.append(swatch(code));
+      label.append(document.createTextNode(`${code ? `${sigle(code)} · ` : ""}${d.title}`));
+      row.append(el("span", "when", d.due.slice(11)), label, el("span", "where", KIND_LABEL[d.kind]), chevron);
+      row.addEventListener("click", () => toggleExpanded(key, view));
+      day.append(row);
+      if (open) day.append(deadlineDetails(d, view));
+      any = true;
     }
     panel.append(day);
   });
@@ -385,6 +426,89 @@ function detailsPanel(o: Occurrence, view: View): HTMLElement {
   return box;
 }
 
+// ---------------------------------------------------------------------------
+// Échéances (StudiUM + manuelles) — ligne compacte et panneau de détail
+
+/** « ouvre dans 4 j · avant ven. 23:59 », « avant aujourd'hui 23:59 », « passé · 10 sept. ». */
+function dueLabel(d: Deadline, now: Now): string {
+  const status = deadlineStatus(d, now.dateTime);
+  const date = d.due.slice(0, 10);
+  const time = d.due.slice(11);
+  const left = daysUntil(date, now.date);
+  const when = left === 0 ? `aujourd'hui ${time}` : left > 0 && left <= 6 ? `${weekdayName(isoWeekday(date), "short")} ${time}` : `${shortDate(date)} ${time}`;
+  if (status === "overdue") return `passé · ${shortDate(date)}`;
+  if (d.start && d.start > now.dateTime) {
+    const opens = daysUntil(d.start.slice(0, 10), now.date);
+    return `ouvre ${opens === 0 ? "aujourd'hui" : `dans ${opens} j`} · avant ${when}`;
+  }
+  return `avant ${when}`;
+}
+
+function deadlineRow(d: Deadline, view: View, now: Now, key: string): HTMLElement {
+  const status = deadlineStatus(d, now.dateTime);
+  const code = resolveCourseCode(d, view.state.courseLinks);
+  const row = el("div", `dl-row ${status}${ui.expanded === key ? " open" : ""}`);
+  row.style.borderLeftColor = code ? colorOf(code) : "var(--line)";
+  const title = el("span", "title");
+  if (code) title.append(swatch(code), document.createTextNode(`${sigle(code)} · `));
+  title.append(document.createTextNode(d.title), el("span", "kind", ` · ${KIND_LABEL[d.kind]}`));
+  const chevron = el("span", "chevron");
+  chevron.append(icon("right", 12));
+  row.append(title, el("span", "when", dueLabel(d, now)), chevron);
+  row.addEventListener("click", () => toggleExpanded(key, view));
+  return row;
+}
+
+function deadlineDetails(d: Deadline, view: View): HTMLElement {
+  const box = el("div", "details");
+  const dateTime = (v: string) => `${longDate(v.slice(0, 10))} ${v.slice(11)}`;
+  if (d.start) box.append(el("div", "sub", `Ouvert du ${dateTime(d.start)} au ${dateTime(d.due)}`));
+  else box.append(el("div", "sub", `À faire avant le ${dateTime(d.due)}`));
+  if (d.location) box.append(el("div", "sub", formatLocation(d.location)));
+  if (d.note) box.append(withIcon("info", d.note, "inline dim"));
+  box.append(el("div", "source", `Source : ${SOURCE_LABEL[d.source]}`));
+  const row = el("div", "row");
+  if (d.url) {
+    const url = d.url;
+    const open = el("button", "secondary");
+    open.append(icon("right"), document.createTextNode("Ouvrir sur StudiUM"));
+    open.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      void chrome.tabs.create({ url });
+    });
+    row.append(open);
+  }
+  const g = el("button", "secondary");
+  g.append(icon("calendarPlus"), document.createTextNode("Google Agenda"));
+  g.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const code = resolveCourseCode(d, view.state.courseLinks);
+    const dueDate = d.due.slice(0, 10);
+    const sameDayStart = d.start && d.start.slice(0, 10) === dueDate ? d.start.slice(11) : undefined;
+    void chrome.tabs.create({
+      url: googleCalendarUrl({
+        title: `${code ? `${sigle(code)} — ` : ""}${d.title}`,
+        date: dueDate,
+        start: sameDayStart ?? d.due.slice(11),
+        end: d.due.slice(11),
+        location: d.location ? fullLocation(d.location) : "",
+      }),
+    });
+  });
+  row.append(g);
+  const rm = el("button", "secondary danger", d.source === "manuel" ? "Supprimer" : "Retirer");
+  rm.title = d.source === "manuel" ? "Supprimer cet événement" : "Masquer cette échéance ; elle ne reviendra pas à la prochaine synchronisation";
+  rm.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    await send({ type: "DEADLINE_REMOVE", id: d.id });
+    ui.expanded = null;
+    await refresh();
+  });
+  row.append(rm);
+  box.append(row);
+  return box;
+}
+
 function toggleExpanded(key: string, view: View): void {
   const now = localNow();
   if (key.startsWith("exam|")) {
@@ -395,6 +519,7 @@ function toggleExpanded(key: string, view: View): void {
     ui.expanded = ui.expanded === key ? null : key;
     void saveUi();
     renderWeek(view, now);
+    if (key.startsWith("dl|")) renderToday(view, now);
   }
 }
 
@@ -474,6 +599,8 @@ function selectTab(tab: Tab, focus = false): void {
   $("panel-week").hidden = tab !== "week";
   $("panel-exams").hidden = tab !== "exams";
   $("paste-panel").hidden = true;
+  $("deadline-panel").hidden = true;
+  $("link-panel").hidden = true;
   // Revenir sur Aujourd'hui après un moment ailleurs : recalculer « dans X min ».
   if (tab === "today" && currentView) renderToday(currentView, localNow());
 }
@@ -507,11 +634,31 @@ function wireMenu(): void {
     if (ev.key === "Escape") close();
   });
   $("menu-paste").addEventListener("click", () => {
-    for (const p of ["panel-today", "panel-week", "panel-exams"]) $(p).hidden = true;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "deadline-panel", "link-panel"]) $(p).hidden = true;
     $("paste-panel").hidden = false;
     $<HTMLTextAreaElement>("paste-2").focus();
   });
   $("paste-cancel").addEventListener("click", () => selectTab(ui.tab));
+  const showPanel = (id: string) => {
+    for (const p of ["panel-today", "panel-week", "panel-exams", "paste-panel", "deadline-panel", "link-panel"]) $(p).hidden = p !== id;
+  };
+  $("menu-deadline").addEventListener("click", () => {
+    showPanel("deadline-panel");
+    $("dl-error").hidden = true;
+    if (!$<HTMLInputElement>("dl-date").value) $<HTMLInputElement>("dl-date").value = localNow().date;
+    $<HTMLInputElement>("dl-title").focus();
+  });
+  $("dl-cancel").addEventListener("click", () => selectTab(ui.tab));
+  $("dl-save").addEventListener("click", () => void saveManualDeadline());
+  $("dl-title").addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") void saveManualDeadline();
+  });
+  $("menu-studium").addEventListener("click", () => void chrome.tabs.create({ url: STUDIUM_URL }));
+  $("menu-links").addEventListener("click", () => {
+    if (currentView) renderLinks(currentView);
+    showPanel("link-panel");
+  });
+  $("link-close").addEventListener("click", () => selectTab(ui.tab));
   $("menu-alarms").addEventListener("click", () => {
     ui.courseAlarms = !ui.courseAlarms;
     void saveUi();
@@ -543,7 +690,14 @@ function reportBug(ev: Event): void {
 }
 
 function wireExport(view: View, nowIso: string): void {
-  const ics = () => generateIcs(view.schedule, { excludedDates: view.excluded, dtstamp: nowIso, alarms: { exams: true, courses: ui.courseAlarms } });
+  const ics = () =>
+    generateIcs(view.schedule, {
+      excludedDates: view.excluded,
+      dtstamp: nowIso,
+      alarms: { exams: true, courses: ui.courseAlarms },
+      // Sigle résolu ici (surcharges de liaison), l'ICS ne connaît pas courseLinks.
+      deadlines: view.deadlines.map((d) => ({ ...d, courseCode: resolveCourseCode(d, view.state.courseLinks) })),
+    });
   const fileName = `horaire-udem-${view.schedule.term.code}.ics`;
   $("export").onclick = () => {
     const url = URL.createObjectURL(new Blob([ics()], { type: "text/calendar;charset=utf-8" }));
@@ -578,6 +732,89 @@ async function importPasted(textareaId: string, errorId: string): Promise<void> 
 }
 
 // ---------------------------------------------------------------------------
+// Événement manuel et écran de liaison StudiUM
+
+async function saveManualDeadline(): Promise<void> {
+  const err = $("dl-error");
+  err.hidden = true;
+  const result = validateManual(
+    {
+      title: $<HTMLInputElement>("dl-title").value,
+      date: $<HTMLInputElement>("dl-date").value,
+      time: $<HTMLInputElement>("dl-time").value || undefined,
+      courseCode: $<HTMLSelectElement>("dl-course").value || undefined,
+      kind: ($<HTMLSelectElement>("dl-kind").value || "evenement") as DeadlineKind,
+      location: $<HTMLInputElement>("dl-location").value || undefined,
+    },
+    crypto.randomUUID(),
+  );
+  if (!result.ok) {
+    err.textContent = result.errors.join(" ");
+    err.hidden = false;
+    return;
+  }
+  await send({ type: "DEADLINE_UPSERT", deadline: result.deadline });
+  $<HTMLInputElement>("dl-title").value = "";
+  $<HTMLInputElement>("dl-location").value = "";
+  await refresh();
+  selectTab(ui.tab);
+}
+
+/** Remplit un sélecteur avec les sigles du trimestre affiché, précédés d'une option vide. */
+function fillCourseSelect(view: View, select: HTMLSelectElement, current: string | null | undefined, noneLabel: string): void {
+  const codes = [...new Set(view.schedule.courses.map((c) => c.code))].sort();
+  select.replaceChildren();
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = noneLabel;
+  select.append(none);
+  for (const code of codes) {
+    const opt = document.createElement("option");
+    opt.value = code;
+    opt.textContent = sigle(code);
+    if (code === current) opt.selected = true;
+    select.append(opt);
+  }
+}
+
+function renderLinks(view: View): void {
+  const rows = $("link-rows");
+  rows.replaceChildren();
+  const sites = view.state.studium?.courses ?? [];
+  if (sites.length === 0) {
+    rows.append(el("p", "empty", "Aucun site StudiUM vu pour l'instant. Ouvrez StudiUM une fois."));
+    return;
+  }
+  for (const site of [...sites].sort((a, b) => a.shortname.localeCompare(b.shortname))) {
+    const row = el("div", "link-row");
+    const name = el("span", "name", site.shortname || site.fullname);
+    name.title = site.fullname;
+    const select = document.createElement("select");
+    const override = view.state.courseLinks?.[String(site.id)];
+    const current = override === undefined ? site.courseCode : override;
+    fillCourseSelect(view, select, current, "— ne pas lier —");
+    select.addEventListener("change", async () => {
+      await send({ type: "COURSE_LINK_SET", studiumCourseId: site.id, courseCode: select.value || null });
+      const state = await send<StoredState>({ type: "GET_STATE" });
+      if (currentView) currentView.state = state;
+    });
+    row.append(name, select);
+    rows.append(row);
+  }
+}
+
+/** Ligne d'état StudiUM sous « Mis à jour … ». */
+function studiumStatusText(state: StoredState, nowIso: string): string {
+  const st = state.studium;
+  if (!st || !st.lastSyncAt) return "StudiUM : ouvrez StudiUM une fois pour synchroniser vos échéances.";
+  const when = `StudiUM synchronisé ${relativeTime(st.lastSyncAt, nowIso)}`;
+  const failedAt = st.lastErrorAt ? ` ${relativeTime(st.lastErrorAt, nowIso)}` : "";
+  if (st.lastError === "sesskey-absent" || st.lastError === "invalidsesskey") return `${when} · session expirée${failedAt}, rouvrez StudiUM.`;
+  if (st.lastError) return `${when} · tentative échouée${failedAt} (${st.lastError}).`;
+  return when;
+}
+
+// ---------------------------------------------------------------------------
 // Rendu principal
 
 let currentView: View | null = null;
@@ -595,6 +832,7 @@ function render(state: StoredState): void {
   } else {
     captured.textContent = "";
   }
+  $("studium-status").textContent = "";
   $("menu-alarms").textContent = `Rappels pour les cours : ${ui.courseAlarms ? "oui" : "non"}`;
 
   const has = Boolean(schedule);
@@ -605,15 +843,19 @@ function render(state: StoredState): void {
   if (!schedule) {
     $("term").textContent = "";
     currentView = null;
-    for (const p of ["panel-today", "panel-week", "panel-exams", "paste-panel"]) $(p).hidden = true;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "paste-panel", "deadline-panel", "link-panel"]) $(p).hidden = true;
     return;
   }
 
   $("term").textContent = schedule.term.label;
   const excluded = excludedDates(schedule.term.code);
   const occurrences = expandSchedule(schedule, { excludedDates: excluded });
-  const view: View = { state, schedule, occurrences, excluded };
+  const view: View = { state, schedule, occurrences, excluded, deadlines: allDeadlines(state) };
   currentView = view;
+  const courseSelect = $<HTMLSelectElement>("dl-course");
+  fillCourseSelect(view, courseSelect, courseSelect.value, "— aucun —");
+  $("menu-links").hidden = (state.studium?.courses.length ?? 0) === 0;
+  $("studium-status").textContent = studiumStatusText(state, now.iso);
   const codes = [...new Set([...schedule.courses.map((c) => c.code), ...schedule.exams.map((e) => e.courseCode)])].sort();
   palette = new Map(codes.map((code, i) => [code, PALETTE[i % PALETTE.length]!]));
 

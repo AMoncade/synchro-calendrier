@@ -24,6 +24,8 @@ export type Message =
 export interface StudiumStatus {
   lastSyncAt: string | null;
   lastError: string | null;
+  /** Instant du dernier échec, pour dater le message d'erreur du popup. */
+  lastErrorAt: string | null;
   /** Sites vus à la dernière synchronisation, pour l'écran de liaison. */
   courses: StudiumCourse[];
 }

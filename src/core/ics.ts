@@ -6,7 +6,7 @@
 // La sortie est entièrement déterministe : DTSTAMP vient de l'appelant,
 // les UID sont dérivés des données. Ré-importer remplace, ne duplique pas.
 
-import type { Course, Exam, Meeting, Schedule } from "./model";
+import type { Course, Deadline, Exam, Meeting, Schedule } from "./model";
 import { dateToUtc, meetingDates } from "./expand";
 import { fullLocation } from "../format/location";
 
@@ -35,6 +35,11 @@ export interface IcsOptions {
   calName?: string;
   /** Rappels. Défaut : `DEFAULT_ALARMS`. */
   alarms?: Partial<AlarmOptions>;
+  /**
+   * Échéances (StudiUM, manuelles) à joindre au calendrier, phase 12. Le
+   * `courseCode` doit déjà être résolu par l'appelant (`deadlines.resolveCourseCode`).
+   */
+  deadlines?: Deadline[];
 }
 
 const COMPONENT_NAMES: Record<Course["component"], string> = {
@@ -212,6 +217,16 @@ export function meetingUid(termCode: string, course: Course, meeting: Meeting): 
   return `${parts.map(uidPart).join("-")}@${UID_DOMAIN}`;
 }
 
+/** `<term>-echeance-<id>@synchro-calendrier` — l'id est déjà stable d'une synchro à l'autre. */
+export function deadlineUid(termCode: string, deadline: Deadline): string {
+  return `${[termCode, "echeance", deadline.id.replace(/:/g, "-")].map(uidPart).join("-")}@${UID_DOMAIN}`;
+}
+
+/** « MAT1400 — Quiz-tp3 » ou « Rendez-vous TGDE » sans sigle. */
+export function deadlineSummary(deadline: Deadline): string {
+  return deadline.courseCode ? `${compactCode(deadline.courseCode)} — ${deadline.title}` : deadline.title;
+}
+
 /** `<term>-<code>-examen-<date>@synchro-calendrier`. */
 export function examUid(termCode: string, exam: Exam): string {
   return `${[termCode, exam.courseCode, "examen", exam.date].map(uidPart).join("-")}@${UID_DOMAIN}`;
@@ -337,6 +352,36 @@ function examEvent(termCode: string, exam: Exam, dtstamp: string, alarms: AlarmO
   return lines;
 }
 
+/**
+ * VEVENT ponctuel d'une échéance : DTSTART = DTEND = l'instant qui compte
+ * (fermeture du quiz, remise). La fenêtre d'ouverture va dans la DESCRIPTION,
+ * pas dans DTSTART : un quiz ouvert trois jours n'est pas un bloc de trois jours.
+ */
+function deadlineEvent(termCode: string, deadline: Deadline, dtstamp: string, alarms: AlarmOptions): string[] {
+  const summary = deadlineSummary(deadline);
+  const date = deadline.due.slice(0, 10);
+  const time = deadline.due.slice(11, 16);
+  const lines = [
+    "BEGIN:VEVENT",
+    `UID:${deadlineUid(termCode, deadline)}`,
+    `DTSTAMP:${dtstamp}`,
+    `DTSTART;TZID=${TZID}:${toIcsLocal(date, time)}`,
+    `DTEND;TZID=${TZID}:${toIcsLocal(date, time)}`,
+    `SUMMARY:${escapeText(summary)}`,
+  ];
+  if (deadline.location) lines.push(`LOCATION:${escapeText(fullLocation(deadline.location))}`);
+  const description: string[] = [];
+  if (deadline.start) description.push(`Ouvert du ${deadline.start.replace("T", " ")} au ${deadline.due.replace("T", " ")}`);
+  if (deadline.note) description.push(deadline.note);
+  description.push(deadline.source === "studium" ? "Source : StudiUM" : "Ajouté à la main");
+  lines.push(`DESCRIPTION:${escapeText(description.join("\n"))}`);
+  if (deadline.url && !/[?&](authtoken|sesskey)=/.test(deadline.url)) lines.push(`URL:${deadline.url}`);
+  lines.push("CATEGORIES:Échéance");
+  if (alarms.exams) lines.push(...valarm("-PT24H", summary));
+  lines.push("END:VEVENT");
+  return lines;
+}
+
 // ---------------------------------------------------------------------------
 // Point d'entrée
 
@@ -366,6 +411,9 @@ export function generateIcs(schedule: Schedule, opts: IcsOptions): string {
   }
   for (const exam of schedule.exams) {
     logical.push(...examEvent(termCode, exam, dtstamp, alarms));
+  }
+  for (const deadline of opts.deadlines ?? []) {
+    logical.push(...deadlineEvent(termCode, deadline, dtstamp, alarms));
   }
   logical.push("END:VCALENDAR");
 

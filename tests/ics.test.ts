@@ -529,3 +529,50 @@ describe("generateIcs — ré-analyse (DTSTART + RRULE − EXDATE ≡ expandSche
     expect(parseEvents(none).flatMap(flattenEvent).sort(byKey)).toEqual(expected);
   });
 });
+
+// Phase 12 — échéances jointes au calendrier
+describe("deadlines in ICS", () => {
+  const studium = {
+    id: "studium:6624079",
+    source: "studium" as const,
+    courseCode: "MAT1400",
+    studiumCourseId: 366020,
+    title: "Quiz-tp3",
+    kind: "quiz" as const,
+    start: "2026-09-14T10:30",
+    due: "2026-09-17T23:59",
+    url: "https://studium.umontreal.ca/mod/quiz/view.php?id=6624079",
+  };
+  const manual = { id: "manuel:abc", source: "manuel" as const, title: "Rendez-vous TGDE", kind: "evenement" as const, due: "2026-10-02T14:00", location: "B-0215 Pav. J.-Brillant" };
+
+  it("emits one zero-length VEVENT per deadline, at the due instant, with the window in the description", () => {
+    const ics = generateIcs(fixture, { excludedDates: [], dtstamp: "2026-09-09T12:00:00Z", deadlines: [studium, manual] });
+    const events = ics.split("BEGIN:VEVENT").slice(1);
+    const quiz = events.find((e) => e.includes("Quiz-tp3"));
+    expect(quiz).toBeDefined();
+    expect(quiz).toContain("UID:A26-echeance-studium-6624079@synchro-calendrier");
+    expect(quiz).toContain("DTSTART;TZID=America/Toronto:20260917T235900");
+    expect(quiz).toContain("DTEND;TZID=America/Toronto:20260917T235900");
+    expect(quiz).toContain("SUMMARY:MAT1400 — Quiz-tp3");
+    expect(quiz).toContain("Ouvert du 2026-09-14 10:30 au 2026-09-17 23:59");
+    expect(quiz).toContain("URL:https://studium.umontreal.ca/mod/quiz/view.php?id=6624079");
+    expect(quiz).toContain("CATEGORIES:Échéance");
+    expect(quiz).toContain("TRIGGER:-PT24H");
+    const rdv = events.find((e) => e.includes("Rendez-vous TGDE"));
+    expect(rdv).toContain("SUMMARY:Rendez-vous TGDE");
+    expect(rdv).toContain("LOCATION:");
+    expect(rdv).toContain("Ajouté à la main");
+  });
+
+  it("never writes a URL that carries a token", () => {
+    const leaky = { ...studium, url: "https://studium.umontreal.ca/calendar/export_execute.php?userid=1&authtoken=SECRET" };
+    const ics = generateIcs(fixture, { excludedDates: [], dtstamp: "2026-09-09T12:00:00Z", deadlines: [leaky] });
+    expect(ics).not.toContain("SECRET");
+    expect(ics).not.toContain("URL:");
+  });
+
+  it("omits deadlines entirely when none are given", () => {
+    const ics = generateIcs(fixture, { excludedDates: [], dtstamp: "2026-09-09T12:00:00Z" });
+    expect(ics).not.toContain("echeance");
+  });
+});

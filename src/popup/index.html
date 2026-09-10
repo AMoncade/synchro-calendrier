@@ -38,6 +38,39 @@
       <section id="panel-week" role="tabpanel" aria-labelledby="tab-week" hidden></section>
       <section id="panel-exams" role="tabpanel" aria-labelledby="tab-exams" hidden></section>
 
+      <section id="deadline-panel" class="fallback" hidden>
+        <p class="fallback-title">Ajouter un événement</p>
+        <label class="field">Titre<input id="dl-title" type="text" maxlength="120" placeholder="Remise du TP2, rendez-vous, révision…" /></label>
+        <div class="row">
+          <label class="field">Date<input id="dl-date" type="date" /></label>
+          <label class="field">Heure<input id="dl-time" type="time" value="23:59" /></label>
+        </div>
+        <div class="row">
+          <label class="field">Cours<select id="dl-course"><option value="">— aucun —</option></select></label>
+          <label class="field">Type<select id="dl-kind">
+            <option value="evenement">Événement</option>
+            <option value="devoir">Remise</option>
+            <option value="quiz">Quiz</option>
+            <option value="autre">Autre</option>
+          </select></label>
+        </div>
+        <label class="field">Lieu (facultatif)<input id="dl-location" type="text" placeholder="B-0215 Pav. J.-Brillant" /></label>
+        <div class="row">
+          <button id="dl-save">Ajouter</button>
+          <button id="dl-cancel" class="secondary">Annuler</button>
+        </div>
+        <p id="dl-error" class="error" hidden></p>
+      </section>
+
+      <section id="link-panel" class="fallback" hidden>
+        <p class="fallback-title">Lier les sites StudiUM à vos cours</p>
+        <p class="muted">Pré-rempli d'après le sigle. Modifiez si un site ne correspond pas.</p>
+        <div id="link-rows"></div>
+        <div class="row">
+          <button id="link-close" class="secondary">Fermer</button>
+        </div>
+      </section>
+
       <section id="paste-panel" class="fallback" hidden>
         <p class="fallback-title">Coller un horaire mis à jour</p>
         <textarea id="paste-2" rows="5"></textarea>
@@ -58,6 +91,9 @@
           <div id="menu" class="menu" role="menu" hidden>
             <button role="menuitem" class="open-synchro">Ouvrir Synchro</button>
             <button role="menuitem" id="menu-paste">Coller un horaire</button>
+            <button role="menuitem" id="menu-deadline">Ajouter un événement</button>
+            <button role="menuitem" id="menu-studium">Ouvrir StudiUM</button>
+            <button role="menuitem" id="menu-links" hidden>Lier les sites StudiUM</button>
             <button role="menuitem" class="report">Signaler un bug</button>
             <button role="menuitem" id="menu-alarms">Rappels pour les cours : non</button>
             <button role="menuitem" id="clear" class="danger">Effacer les données</button>
@@ -65,6 +101,7 @@
         </div>
       </div>
       <span id="captured" class="muted"></span>
+      <span id="studium-status" class="studium-status"></span>
     </footer>
 
     <script type="module" src="./popup.ts"></script>

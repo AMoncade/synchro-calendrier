@@ -4,6 +4,7 @@
 
 import { classesRemainingToday } from "../core/alerts";
 import { excludedDates } from "../core/calendar-udem";
+import { markStudiumFailed, mergeStudium, removeDeadline, setCourseLink, upsertDeadline } from "../core/deadlines";
 import { expandSchedule } from "../core/expand";
 import { currentTerm, emptyState, mergeCapture } from "../core/store";
 import { STORAGE_KEY, type Message, type StoredState } from "../lib/messages";

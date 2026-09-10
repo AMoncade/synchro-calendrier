@@ -73,7 +73,7 @@ export function mergeStudium(
     if (hidden.has(d.id)) continue;
     kept[d.id] = d;
   }
-  const studium: StudiumStatus = { lastSyncAt: syncedAt, lastError: null, courses };
+  const studium: StudiumStatus = { lastSyncAt: syncedAt, lastError: null, lastErrorAt: null, courses };
   return { ...state, deadlines: kept, studium };
 }
 
@@ -81,20 +81,15 @@ export function mergeStudium(
  * Note l'échec d'une synchronisation. Les échéances déjà connues restent en
  * place — un StudiUM injoignable ne doit pas vider l'écran — et `lastSyncAt`
  * garde la date de la dernière synchronisation *réussie*, pour que le popup
- * puisse dire « dernière synchro il y a 3 jours » sous le message d'erreur.
- *
- * `at`, l'instant de l'échec, n'a pas encore de champ où aller : `StudiumStatus`
- * (`src/lib/messages.ts`, propriété de l'intégratrice) n'expose que
- * `lastSyncAt`, `lastError` et `courses`. Le paramètre est gardé parce que le
- * message `STUDIUM_FAILED` le transporte déjà ; patch proposé dans le rapport
- * de phase.
+ * puisse dire « dernière synchro il y a 3 jours » sous le message d'erreur ;
+ * `at` date l'échec dans `lastErrorAt` (champ ajouté au merge, 2026-09-10).
  */
 export function markStudiumFailed(state: StoredState, error: string, at: string): StoredState {
-  void at;
   const previous = state.studium;
   const studium: StudiumStatus = {
     lastSyncAt: previous?.lastSyncAt ?? null,
     lastError: error,
+    lastErrorAt: at,
     courses: previous?.courses ?? [],
   };
   return { ...state, studium };
