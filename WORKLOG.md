@@ -1,5 +1,29 @@
 # WORKLOG — Synchro Calendrier UdeM
 
+## 2026-09-10 après-midi — Phase 13 : échéances cochables, notes en opt-in, onglets
+
+- Demande de l'utilisateur après la première synchro réelle : cocher un quiz fait ; un menu
+  « Notes + moyenne du groupe » ; les onglets dont la barre apparaissait décalée (ma règle
+  générique `button { display:inline-flex }` alignait le libellé à gauche d'une cellule
+  `flex:1` — onglets maintenant au contenu, barre sous le libellé).
+- **Décision revue** : les notes entrent dans le périmètre, en opt-in désactivé par défaut
+  (ARCHITECTURE §7 amendé, §8 ajouté, PRIVACY et fiche Store réécrites — alerte d'adrie-f6 :
+  la politique disait deux fois « ne lit pas vos notes » alors que le contrat était posé).
+  La déclaration Web Store devra mentionner les notes comme données lues localement.
+- Contrat (a246a1a) : `doneDeadlines`, `DEADLINE_DONE_SET`, `GradeItem`/`GradeReport`,
+  `STUDIUM_GRADES_SYNCED`, clé opt-in `synchro-calendrier.studium-grades-optin`. Garde
+  d'exhaustivité vérifiée en vrai : `tsc` a refusé le background tant que les deux messages
+  n'étaient pas routés.
+- adrie-f6, `deadlines-done` (325f4ed, +20) : `setDeadlineDone`, `isDone`, `pruneDone` (appelé
+  par `mergeStudium` et `removeDeadline`), `deadlineStatus` avec `done` qui prime sur tout.
+- adrie-07, `tampon-tests` (80b7e71, +4) : run interrompu → aucun tampon ; course entre onglets
+  figée comme délibérée (12 requêtes si deux onglets simultanés, accepté).
+- En vol : adrie-29 `grades-parse` (`core/grades.ts`, tableau repéré par en-têtes texte ;
+  structure lue en direct sur MAT1600-AB-A26, HTML brut non capturable par l'outil),
+  adrie-07 `grades-sync` (GET des rapports par site après la synchro calendrier, opt-in
+  seulement). Popup (intégratrice) : case à cocher sur chaque échéance, panneau Notes depuis
+  le menu, bascule opt-in qui efface les notes à la désactivation.
+
 ## 2026-09-10 — Phase 12 : échéances StudiUM et événements manuels (version 0.3.0)
 
 - Point de départ : repérage de l'utilisateur sur sa session StudiUM

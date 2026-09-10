@@ -189,8 +189,10 @@ l'utilisateur). Décisions :
   fourni par l'appelant, `core/` reste pur). Créés dans le popup, validés par
   `core/deadlines.ts`.
 - **Dans l'interface**, chaque échéance affiche sa provenance (`StudiUM` / `Ajouté à la main`)
-  pour qu'une donnée manquante se comprenne. Les notes (carnet StudiUM) sont **hors périmètre**
-  jusqu'à la v3 : données sensibles, révision Web Store plus lourde, opt-in séparé.
+  pour qu'une donnée manquante se comprenne. Les notes (carnet StudiUM) étaient **hors périmètre**
+  jusqu'à la v3 (données sensibles, révision Web Store plus lourde, opt-in séparé) — décision
+  revue le 2026-09-10 à la demande de l'utilisateur, après la première synchro réelle : elles
+  entrent en opt-in désactivé par défaut, voir §8.
 
 Flux :
 

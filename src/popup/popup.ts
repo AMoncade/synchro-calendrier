@@ -7,7 +7,7 @@
 import { excludedDates, getTermCalendar } from "../core/calendar-udem";
 import { classesRemainingToday, examClusters, minutesOfTime } from "../core/alerts";
 import { findConflicts } from "../core/conflicts";
-import { allDeadlines, deadlineStatus, deadlinesOn, resolveCourseCode, upcomingDeadlines, validateManual } from "../core/deadlines";
+import { allDeadlines, deadlineStatus, deadlinesOn, isDone, resolveCourseCode, upcomingDeadlines, validateManual } from "../core/deadlines";
 import { addDays, expandSchedule } from "../core/expand";
 import { googleCalendarUrl } from "../core/gcal";
 import { generateIcs } from "../core/ics";
@@ -32,7 +32,8 @@ import {
   sigle,
   weekdayName,
 } from "../format";
-import type { Message, StoredState } from "../lib/messages";
+import { GRADES_OPT_IN_KEY, type Message, type StoredState } from "../lib/messages";
+import type { GradeItem, GradeReport } from "../core/model";
 import { bullet, icon } from "./icons";
 
 const SYNCHRO_URL = "https://academique-dmz.synchro.umontreal.ca/";
@@ -361,12 +362,13 @@ function renderWeek(view: View, now: Now): void {
       const key = `dl|${d.id}`;
       const open = ui.expanded === key;
       const code = resolveCourseCode(d, view.state.courseLinks);
-      const row = el("div", `week-item deadline${open ? " open" : ""}`);
+      const row = el("div", `week-item deadline${open ? " open" : ""}${isDone(view.state, d.id) ? " done" : ""}`);
       const chevron = el("span", "chevron");
       chevron.append(icon("right", 12));
-      const label = el("span", "label", `${code ? `${sigle(code)} · ` : ""}${d.title}`);
-      const dot = code ? swatch(code) : el("span", "swatch");
-      row.append(dot, el("span", "when", d.due.slice(11)), label, el("span", "where", KIND_LABEL[d.kind]), chevron);
+      const label = el("span", "label");
+      if (code) label.append(swatch(code));
+      label.append(document.createTextNode(`${code ? `${sigle(code)} · ` : ""}${d.title}`));
+      row.append(doneCheckbox(d, view), el("span", "when", d.due.slice(11)), label, el("span", "where", KIND_LABEL[d.kind]), chevron);
       row.addEventListener("click", () => toggleExpanded(key, view));
       day.append(row);
       if (open) day.append(deadlineDetails(d, view));
@@ -455,8 +457,26 @@ function dueLabel(d: Deadline, now: Now): string {
   return `avant ${when}`;
 }
 
+
+/** Case « fait » : un clic ne déplie pas la ligne, il bascule l'état et redessine. */
+function doneCheckbox(d: Deadline, view: View): HTMLInputElement {
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.className = "check";
+  box.checked = isDone(view.state, d.id);
+  box.title = box.checked ? "Marquer à refaire" : "Marquer comme fait";
+  box.setAttribute("aria-label", `${d.title} : fait`);
+  box.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    await send({ type: "DEADLINE_DONE_SET", id: d.id, done: box.checked });
+    await refresh();
+  });
+  return box;
+}
+
 function deadlineRow(d: Deadline, view: View, now: Now, key: string): HTMLElement {
-  const status = deadlineStatus(d, now.dateTime);
+  const done = isDone(view.state, d.id);
+  const status = deadlineStatus(d, now.dateTime, done);
   const code = resolveCourseCode(d, view.state.courseLinks);
   const row = el("div", `dl-row status-${status}${ui.expanded === key ? " open" : ""}`);
   const title = el("span", "title");
@@ -464,7 +484,7 @@ function deadlineRow(d: Deadline, view: View, now: Now, key: string): HTMLElemen
   title.append(document.createTextNode(d.title), el("span", "kind", ` · ${KIND_LABEL[d.kind]}`));
   const chevron = el("span", "chevron");
   chevron.append(icon("right", 12));
-  row.append(title, el("span", "when", dueLabel(d, now)), chevron);
+  row.append(doneCheckbox(d, view), title, el("span", "when", done ? "fait" : dueLabel(d, now)), chevron);
   row.addEventListener("click", () => toggleExpanded(key, view));
   return row;
 }
@@ -611,6 +631,7 @@ function selectTab(tab: Tab, focus = false): void {
   $("paste-panel").hidden = true;
   $("deadline-panel").hidden = true;
   $("link-panel").hidden = true;
+  $("grades-panel").hidden = true;
   // Revenir sur Aujourd'hui après un moment ailleurs : recalculer « dans X min ».
   if (tab === "today" && currentView) renderToday(currentView, localNow());
 }
@@ -644,14 +665,20 @@ function wireMenu(): void {
     if (ev.key === "Escape") close();
   });
   $("menu-paste").addEventListener("click", () => {
-    for (const p of ["panel-today", "panel-week", "panel-exams", "deadline-panel", "link-panel"]) $(p).hidden = true;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "deadline-panel", "link-panel", "grades-panel"]) $(p).hidden = true;
     $("paste-panel").hidden = false;
     $<HTMLTextAreaElement>("paste-2").focus();
   });
   $("paste-cancel").addEventListener("click", () => selectTab(ui.tab));
   const showPanel = (id: string) => {
-    for (const p of ["panel-today", "panel-week", "panel-exams", "paste-panel", "deadline-panel", "link-panel"]) $(p).hidden = p !== id;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "paste-panel", "deadline-panel", "link-panel", "grades-panel"]) $(p).hidden = p !== id;
   };
+  $("menu-grades").addEventListener("click", () => {
+    if (currentView) void renderGrades(currentView);
+    showPanel("grades-panel");
+  });
+  $("grades-close").addEventListener("click", () => selectTab(ui.tab));
+  $("grades-optin").addEventListener("change", () => void setGradesOptIn($<HTMLInputElement>("grades-optin").checked));
   $("menu-deadline").addEventListener("click", () => {
     showPanel("deadline-panel");
     $("dl-error").hidden = true;
@@ -844,6 +871,76 @@ async function syncStudium(): Promise<void> {
   void chrome.tabs.create({ url: STUDIUM_URL });
 }
 
+// ---------------------------------------------------------------------------
+// Notes (opt-in) : carnets StudiUM tels que lus, jamais recalculés
+
+async function readGradesOptIn(): Promise<boolean> {
+  try {
+    return (await chrome.storage.local.get(GRADES_OPT_IN_KEY))[GRADES_OPT_IN_KEY] === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Activer pose la clé lue par le content script ; désactiver efface aussi les notes gardées. */
+async function setGradesOptIn(on: boolean): Promise<void> {
+  if (on) await chrome.storage.local.set({ [GRADES_OPT_IN_KEY]: true }).catch(() => undefined);
+  else {
+    await chrome.storage.local.remove(GRADES_OPT_IN_KEY).catch(() => undefined);
+    await send({ type: "STUDIUM_GRADES_SYNCED", reports: [], syncedAt: localNow().dateTime });
+  }
+  const state = await send<StoredState>({ type: "GET_STATE" });
+  if (currentView) currentView.state = state;
+  if (currentView) await renderGrades(currentView);
+}
+
+function gradeRow(item: GradeItem, cls = ""): HTMLElement {
+  const row = el("div", `grade-row${cls ? ` ${cls}` : ""}`);
+  const name = el("span", "name", item.name);
+  name.title = item.name;
+  if (item.depth) name.style.paddingLeft = `${item.depth * 10}px`;
+  row.append(name, el("span", "num grade", item.grade || "—"), el("span", "num", item.range ? `/ ${item.range.replace(/^0[–-]/, "")}` : ""), el("span", "num", item.average || ""));
+  return row;
+}
+
+async function renderGrades(view: View): Promise<void> {
+  const on = await readGradesOptIn();
+  $<HTMLInputElement>("grades-optin").checked = on;
+  const status = $("grades-status");
+  const list = $("grades-list");
+  list.replaceChildren();
+  const grades = view.state.grades;
+  if (!on) {
+    status.textContent = "";
+    return;
+  }
+  if (!grades || grades.reports.length === 0) {
+    status.textContent = grades
+      ? "Aucun carnet de notes trouvé sur vos sites StudiUM."
+      : "Ouvrez StudiUM une fois (ou menu ⋯ → Synchroniser StudiUM) : les notes sont lues avec le calendrier.";
+    return;
+  }
+  status.textContent = `Lu ${relativeTime(toIso(grades.syncedAt), localNow().iso)} · moyenne du groupe entre parenthèses : nombre de répondants.`;
+  const reports = [...grades.reports].sort((a, b) => (a.courseCode ?? a.shortname).localeCompare(b.courseCode ?? b.shortname));
+  for (const r of reports) list.append(gradesBlock(r, view));
+}
+
+function gradesBlock(r: GradeReport, view: View): HTMLElement {
+  const code = view.state.courseLinks?.[String(r.studiumCourseId)] ?? r.courseCode;
+  const box = el("div", "grades-course");
+  const h = el("h3");
+  if (code) h.append(swatch(code), document.createTextNode(sigle(code)));
+  h.append(el("span", "dim", code ? r.shortname : r.shortname));
+  box.append(h);
+  const head = el("div", "grade-row head");
+  head.append(el("span", "name", "Élément"), el("span", "num", "Note"), el("span", "num", "Sur"), el("span", "num", "Moyenne"));
+  box.append(head);
+  if (r.items.length === 0) box.append(el("p", "dim", "Rien de publié pour l'instant."));
+  for (const item of r.items) box.append(gradeRow(item, item.depth === undefined || item.depth === 0 ? "" : "cat"));
+  if (r.total) box.append(gradeRow({ ...r.total, name: "Total du cours" }, "total"));
+  return box;
+}
+
 /** Ligne d'état StudiUM sous « Mis à jour … ». */
 function studiumStatusText(state: StoredState, nowIso: string): string {
   const st = state.studium;
@@ -887,7 +984,7 @@ function render(state: StoredState): void {
   if (!schedule) {
     $("term").textContent = "";
     currentView = null;
-    for (const p of ["panel-today", "panel-week", "panel-exams", "paste-panel", "deadline-panel", "link-panel"]) $(p).hidden = true;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "paste-panel", "deadline-panel", "link-panel", "grades-panel"]) $(p).hidden = true;
     return;
   }
 

@@ -201,3 +201,24 @@ a { color: var(--accent); }
 .link-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .link-row select { font: inherit; font-size: 12px; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 .studium-status { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+
+/* Phase 13 — cochage et notes */
+.check { appearance: none; width: 15px; height: 15px; margin: 0; border: 1.5px solid var(--muted); border-radius: 4px; background: transparent; cursor: pointer; align-self: center; flex: none; display: inline-grid; place-content: center; }
+.check::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); transform: scale(0); transition: transform 90ms; }
+.check:checked { border-color: var(--accent); }
+.check:checked::before { transform: scale(1); }
+.dl-row { grid-template-columns: 15px 1fr auto 12px; }
+.dl-row.status-done, .week-item.deadline.done { opacity: 0.55; }
+.dl-row.status-done .title, .week-item.deadline.done .label { text-decoration: line-through; }
+.week-item.deadline { grid-template-columns: 15px 78px 1fr auto 12px; }
+.optin { display: flex; gap: 8px; align-items: center; font-weight: 500; margin-top: 4px; }
+.grades-course { margin-top: 14px; }
+.grades-course h3 { display: flex; gap: 8px; align-items: baseline; }
+.grades-course h3 .dim { font-weight: 400; }
+.grade-row { display: grid; grid-template-columns: 1fr 52px 48px 76px; column-gap: 8px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.grade-row.head { border-top: 0; color: var(--muted); font-size: 11px; padding-bottom: 2px; }
+.grade-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
+.grade-row .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.grade-row .grade { font-weight: 600; color: var(--fg); }
+.grade-row.total { border-top: 2px solid var(--line); font-weight: 600; }
+.grade-row.cat .name { color: var(--fg-2); font-weight: 600; }

@@ -4,7 +4,7 @@
 
 import { classesRemainingToday } from "../core/alerts";
 import { excludedDates } from "../core/calendar-udem";
-import { markStudiumFailed, mergeStudium, removeDeadline, setCourseLink, upsertDeadline } from "../core/deadlines";
+import { markStudiumFailed, mergeStudium, removeDeadline, setCourseLink, setDeadlineDone, upsertDeadline } from "../core/deadlines";
 import { expandSchedule } from "../core/expand";
 import { currentTerm, emptyState, mergeCapture } from "../core/store";
 import { STORAGE_KEY, type Message, type StoredState } from "../lib/messages";
@@ -71,17 +71,10 @@ async function handle(message: Message): Promise<unknown> {
     case "COURSE_LINK_SET":
       await saveState(setCourseLink(await loadState(), message.studiumCourseId, message.courseCode));
       return { ok: true };
-    // Phase 13 — cochage et carnet de notes. Logique pure dans core/deadlines.ts
-    // (setDeadlineDone) et core/grades.ts (mergeGrades) dès que ces branches atterrissent ;
-    // en attendant, deux opérations d'état triviales ici, sans mutation.
-    case "DEADLINE_DONE_SET": {
-      const state = await loadState();
-      const done = new Set(state.doneDeadlines ?? []);
-      if (message.done) done.add(message.id);
-      else done.delete(message.id);
-      await saveState({ ...state, doneDeadlines: [...done] });
+    // Phase 13 — cochage (core/deadlines.ts) et carnet de notes (remplacé en bloc).
+    case "DEADLINE_DONE_SET":
+      await saveState(setDeadlineDone(await loadState(), message.id, message.done));
       return { ok: true };
-    }
     case "STUDIUM_GRADES_SYNCED": {
       const state = await loadState();
       await saveState({ ...state, grades: { reports: message.reports, syncedAt: message.syncedAt } });
