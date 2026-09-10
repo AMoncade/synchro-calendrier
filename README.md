@@ -16,21 +16,22 @@ stockage local de Chrome, et n'envoie rien nulle part. Voir
 
 ![Onglet Examens](docs/store/3-examens.png)
 
-> _Capture à venir — voir la liste des captures à produire dans_
-> [`docs/STORE.md`](docs/STORE.md).
-
 ## Ce qu'elle fait
 
-- **Export `.ics`** — les séances hebdomadaires deviennent des événements récurrents, avec
-  local et volet (théorie, travaux pratiques, laboratoire). La semaine de relâche et les
-  jours fériés sont retirés automatiquement.
-- **Examens** — les examens intra et finaux repérés dans votre horaire sont exportés comme
-  événements datés, et listés à part dans le popup.
-- **Conflits** — deux séances qui se chevauchent, un cours pendant un examen, deux examens
-  la même journée : la liste apparaît en haut du popup.
-- **Compte à rebours** — l'icône affiche le nombre de jours avant votre prochain examen.
-- **Repli « coller mon horaire »** — si l'extraction automatique échoue, vous pouvez
-  copier-coller le texte de la page ; le résultat est le même.
+- **Aujourd'hui** — le cours en cours, le suivant, le temps qu'il reste, le local et le
+  pavillon. Le soir, la vue passe à demain ; le week-end, au prochain jour de cours.
+- **Semaine** — vos séances jour par jour, congés et relâche nommés, navigation d'une
+  semaine à l'autre, détails au clic (plages de dates, copier le local, carte du campus).
+- **Examens** — intras et finaux séparés, jours restants, alerte quand plusieurs examens
+  tombent en quelques jours, ajout d'un examen à Google Agenda en un clic.
+- **Export `.ics`** — les séances hebdomadaires deviennent des événements récurrents avec
+  local et volet, les examens des événements datés avec rappels 24 h et 1 h avant. La
+  semaine de relâche et les jours fériés sont retirés automatiquement.
+- **Conflits** — deux séances qui se chevauchent ou un cours pendant un examen : signalé
+  dans Aujourd'hui et Semaine.
+- **Badge** — l'icône affiche le nombre de cours qu'il vous reste aujourd'hui.
+- **Repli « coller mon horaire »** — si l'extraction automatique échoue, copiez-collez le
+  texte de la page depuis le menu ⋯ ; le résultat est le même.
 
 ## Installation
 
@@ -51,8 +52,8 @@ Puis dans Chrome :
 3. Cliquez sur **Charger l'extension non empaquetée** et choisissez le dossier `dist/`
    créé par `npm run build`.
 
-L'icône du calendrier apparaît dans la barre d'outils. Épinglez-la pour voir le compte à
-rebours des examens.
+L'icône du calendrier apparaît dans la barre d'outils. Épinglez-la pour voir le badge des
+cours restants dans la journée.
 
 ## Utilisation
 
@@ -60,8 +61,8 @@ rebours des examens.
 2. Ouvrez **Horaire hebdomadaire** (choisissez le trimestre si on vous le demande).
 3. Basculez sur la vue **Liste**. L'extension capture l'horaire au passage.
 
-Cliquez ensuite sur l'icône de l'extension : vos cours, vos examens et vos conflits sont
-là. Le bouton **Exporter .ics** télécharge un fichier `horaire-udem-A26.ics`.
+Cliquez ensuite sur l'icône de l'extension : les onglets Aujourd'hui, Semaine et Examens
+sont remplis. Le bouton **Exporter .ics** télécharge un fichier `horaire-udem-A26.ics`.
 
 La page Centre étudiant seule donne un horaire partiel, sans dates de début et de fin ni
 examens. C'est la vue **Liste** qui contient tout : passez toujours par elle.
@@ -78,9 +79,10 @@ examens. C'est la vue **Liste** qui contient tout : passez toujours par elle.
 - **Apple Calendrier** (macOS, iOS) — double-cliquez le fichier, ou **Fichier → Importer**,
   et choisissez le calendrier de destination.
 
-Les événements portent le fuseau `America/Toronto`. Un réimport après une modification
-d'horaire crée des doublons : videz d'abord le calendrier de destination, d'où l'intérêt
-d'un agenda dédié.
+Les événements portent le fuseau `America/Toronto` et des identifiants stables : réimporter
+le fichier après un changement d'horaire met à jour les événements existants dans Google
+Agenda et Outlook. Un agenda dédié « UdeM » reste pratique pour tout masquer ou supprimer
+d'un coup.
 
 ## Limites connues
 
