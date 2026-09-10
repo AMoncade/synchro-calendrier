@@ -10,9 +10,11 @@ import type { Message } from "../src/lib/messages";
 import {
   ajaxBody,
   ajaxUrl,
+  captureGrades,
   captureStudium,
   dedupeEvents,
   flattenMonthlyEvents,
+  gradeReportUrl,
   isThrottled,
   localNow,
   monthKey,
@@ -335,6 +337,10 @@ describe("runSync", () => {
       writeLastRun: async (atMs) => void runs.push(atMs),
       readForceNext: async () => undefined,
       clearForceNext: async () => {},
+      // Par défaut : pas d'opt-in, donc aucune requête vers les carnets. Un test
+      // qui veut des notes doit le demander explicitement, comme l'utilisateur.
+      readGradesOptIn: async () => undefined,
+      fetchText: async () => ({ ok: false, status: 404, text: async () => "" }),
       ...overrides,
     };
     return { env, sent, runs };
@@ -597,6 +603,190 @@ describe("runSync", () => {
       await runSync(ongletC.env, { force: false });
       expect(stub).toHaveBeenCalledTimes(12);
       expect(ongletC.sent).toEqual([]);
+    });
+  });
+
+  describe("carnets de notes (opt-in)", () => {
+    const COURSES = [
+      { id: 349955, shortname: "MAT1400-A-A26", fullname: "Calcul 1", courseCode: "MAT1400" },
+      { id: 366020, shortname: "MAT1400-AB-A26", fullname: "Calcul 1 — TP" },
+      { id: 355495, shortname: "STT1700-A-A26", fullname: "Statistiques" },
+    ];
+
+    /** L'API AJAX rend les trois sites ; c'est `studiumCourses` qui est stubé à []. */
+    function calendarOk(): ReturnType<typeof vi.fn> {
+      return vi.fn(async (url: string) =>
+        jsonResponse([
+          {
+            error: false,
+            data: url.includes(TIMELINE) ? { courses: COURSES } : monthlyView([]),
+          },
+        ]),
+      );
+    }
+
+    /** Un `fetchText` qui journalise les URL demandées et rend le statut voulu. */
+    function textFetch(status: (id: string) => number = () => 200) {
+      const urls: string[] = [];
+      let inFlight = 0;
+      let maxInFlight = 0;
+      const fetchText = async (url: string) => {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        urls.push(url);
+        await Promise.resolve();
+        inFlight -= 1;
+        const id = new URL(url).searchParams.get("id") ?? "";
+        const code = status(id);
+        return { ok: code >= 200 && code < 300, status: code, text: async () => `<html>${id}` };
+      };
+      return { fetchText, urls, maxInFlight: () => maxInFlight };
+    }
+
+    it("sans opt-in, aucune requête ne part vers /grade/", async () => {
+      vi.stubGlobal("fetch", calendarOk());
+      const grades = textFetch();
+      const { env, sent } = envWith({ fetchText: grades.fetchText });
+
+      await runSync(env, { force: false });
+
+      expect(grades.urls).toEqual([]);
+      expect(sent.map((m) => m.type)).toEqual(["STUDIUM_SYNCED"]);
+    });
+
+    it("la chaîne \"true\" ne vaut pas opt-in", async () => {
+      vi.stubGlobal("fetch", calendarOk());
+      const grades = textFetch();
+      const { env, sent } = envWith({
+        fetchText: grades.fetchText,
+        readGradesOptIn: async () => "true",
+      });
+
+      await runSync(env, { force: false });
+
+      expect(grades.urls).toEqual([]);
+      expect(sent.map((m) => m.type)).toEqual(["STUDIUM_SYNCED"]);
+    });
+
+    it("un storage illisible vaut « pas d'opt-in », jamais l'inverse", async () => {
+      vi.stubGlobal("fetch", calendarOk());
+      const grades = textFetch();
+      const { env, sent } = envWith({
+        fetchText: grades.fetchText,
+        readGradesOptIn: async () => {
+          throw new Error("storage indisponible");
+        },
+      });
+
+      await runSync(env, { force: false });
+
+      expect(grades.urls).toEqual([]);
+      expect(sent.map((m) => m.type)).toEqual(["STUDIUM_SYNCED"]);
+    });
+
+    it("avec opt-in : un GET par site, séquentiel, après le message calendrier", async () => {
+      vi.stubGlobal("fetch", calendarOk());
+      const grades = textFetch();
+      const { env, sent } = envWith({
+        fetchText: grades.fetchText,
+        readGradesOptIn: async () => true,
+      });
+
+      await runSync(env, { force: false });
+
+      expect(grades.urls).toEqual([
+        gradeReportUrl(349955),
+        gradeReportUrl(366020),
+        gradeReportUrl(355495),
+      ]);
+      expect(grades.maxInFlight()).toBe(1); // un carnet à la fois, comme les mois
+      // Le calendrier passe en premier : il ne doit jamais attendre les carnets.
+      expect(sent.map((m) => m.type)).toEqual(["STUDIUM_SYNCED", "STUDIUM_GRADES_SYNCED"]);
+    });
+
+    it("aucune URL construite ne porte userid= ni sesskey=", async () => {
+      // Le parseur de `core/grades` refuse déjà ces liens ; cette couche-ci ne doit
+      // pas non plus en fabriquer. Seul le `courseid` a le droit d'y figurer.
+      const url = gradeReportUrl(366020);
+      expect(url).toBe("https://studium.umontreal.ca/grade/report/user/index.php?id=366020");
+      expect(url).not.toMatch(/userid=|sesskey=|authtoken=/);
+    });
+
+    it("un site en 403 n'empêche pas les autres", async () => {
+      vi.stubGlobal("fetch", calendarOk());
+      const grades = textFetch((id) => (id === "366020" ? 403 : 200));
+      const { env, sent } = envWith({
+        fetchText: grades.fetchText,
+        readGradesOptIn: async () => true,
+      });
+
+      await runSync(env, { force: false });
+
+      expect(grades.urls).toHaveLength(3); // les trois sont bien tentés
+      expect(sent.map((m) => m.type)).toEqual(["STUDIUM_SYNCED", "STUDIUM_GRADES_SYNCED"]);
+    });
+
+    it("un site qui jette sur le réseau n'empêche pas les autres", async () => {
+      vi.stubGlobal("fetch", calendarOk());
+      const seen: string[] = [];
+      const { env, sent } = envWith({
+        readGradesOptIn: async () => true,
+        fetchText: async (url: string) => {
+          seen.push(url);
+          if (url.includes("366020")) throw new TypeError("Failed to fetch");
+          return { ok: true, status: 200, text: async () => "<html>" };
+        },
+      });
+
+      await runSync(env, { force: false });
+
+      expect(seen).toHaveLength(3);
+      expect(sent.map((m) => m.type)).toEqual(["STUDIUM_SYNCED", "STUDIUM_GRADES_SYNCED"]);
+    });
+
+    it("le message part même sans aucun carnet lisible, pour que le popup le dise", async () => {
+      vi.stubGlobal("fetch", calendarOk());
+      const grades = textFetch(() => 404);
+      const { env, sent } = envWith({
+        fetchText: grades.fetchText,
+        readGradesOptIn: async () => true,
+      });
+
+      await runSync(env, { force: false });
+
+      expect(sent[1]).toEqual({
+        type: "STUDIUM_GRADES_SYNCED",
+        reports: [],
+        syncedAt: "2026-09-10T07:05",
+      });
+    });
+
+    it("captureGrades saute un site dont le parseur jette", async () => {
+      // `core/grades` est écrit par une autre session : une page inattendue ne doit
+      // pas emporter les carnets déjà lus. Le stub local rend `undefined` partout,
+      // donc on éprouve ici la tolérance de la boucle, pas le parseur.
+      const seen: string[] = [];
+      const reports = await captureGrades(async (url: string) => {
+        seen.push(url);
+        return { ok: true, status: 200, text: async () => "<html>" };
+      }, COURSES);
+
+      expect(seen).toHaveLength(3);
+      expect(reports).toEqual([]); // stub : aucun carnet reconnu, aucune exception
+    });
+
+    it("aucune synchro calendrier échouée ne déclenche de lecture de carnets", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, 403)));
+      const grades = textFetch();
+      const { env, sent } = envWith({
+        fetchText: grades.fetchText,
+        readGradesOptIn: async () => true,
+      });
+
+      await runSync(env, { force: false });
+
+      expect(grades.urls).toEqual([]);
+      expect(sent.map((m) => m.type)).toEqual(["STUDIUM_FAILED"]);
     });
   });
 });
