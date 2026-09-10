@@ -8,7 +8,8 @@
     "alarms"
   ],
   "host_permissions": [
-    "https://*.synchro.umontreal.ca/*"
+    "https://*.synchro.umontreal.ca/*",
+    "https://studium.umontreal.ca/*"
   ],
   "action": {
     "default_popup": "src/popup/index.html",
@@ -27,6 +28,16 @@
         "src/content/synchro.ts"
       ],
       "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://studium.umontreal.ca/*"
+      ],
+      "js": [
+        "src/content/studium.ts"
+      ],
+      "all_frames": false,
       "run_at": "document_idle"
     }
   ],
