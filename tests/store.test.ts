@@ -52,6 +52,25 @@ describe("mergeCapture", () => {
     expect(Object.keys(s.schedules).sort()).toEqual(["A26", "H27"]);
   });
 
+  it("garde tout ce qui ne vient pas de Synchro (StudiUM, échéances, cochées, masquées, liaisons, notes)", () => {
+    // Trouvé au test Firefox (2026-09-23) : chaque capture Synchro effaçait l'état StudiUM,
+    // et le popup revenait à « ouvrez StudiUM une fois ». Même défaut sous Chrome.
+    const withStudium = {
+      ...mergeCapture(emptyState(), A26, "liste"),
+      deadlines: {},
+      hiddenDeadlines: ["studium-1"],
+      studium: { lastSyncAt: "2026-09-10T14:00:00", lastError: null, lastErrorAt: null, courses: [] },
+      courseLinks: { "42": "MAT1000" },
+      doneDeadlines: ["studium-2"],
+      grades: { reports: [], syncedAt: "2026-09-10T14:00:00" },
+    };
+    const { schedules, sources, lastCapturedAt, lastSource, ...rest } = mergeCapture(withStudium, H27, "liste");
+    const { schedules: _s, sources: _o, lastCapturedAt: _c, lastSource: _l, ...expected } = withStudium;
+    expect(rest).toEqual(expected);
+    expect(Object.keys(schedules).sort()).toEqual(["A26", "H27"]);
+    expect([sources["H27"], lastCapturedAt, lastSource]).toEqual(["liste", H27.capturedAt, "liste"]);
+  });
+
   it("ne mute pas l'état d'entrée", () => {
     const before = mergeCapture(emptyState(), A26, "liste");
     const snapshot = JSON.parse(JSON.stringify(before));

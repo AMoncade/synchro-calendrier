@@ -24,7 +24,9 @@ export function mergeCapture(state: StoredState, schedule: Schedule, source: Cap
     schedules[code] = schedule;
     sources[code] = source;
   }
+  // `...state` : StudiUM, échéances, notes… ne viennent pas de Synchro et doivent survivre.
   return {
+    ...state,
     schedules,
     sources,
     lastCapturedAt: schedule.capturedAt,
