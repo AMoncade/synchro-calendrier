@@ -24,11 +24,13 @@ Sans cette option, l'extension ne lit jamais vos notes.
 **Événements ajoutés à la main.** Ce que vous saisissez dans le popup reste dans le stockage
 local, comme le reste.
 
-**Stockage.** L'horaire extrait est conservé dans le stockage local de l'extension
-(`chrome.storage.local`), sur votre ordinateur. Vous pouvez l'effacer à tout moment depuis
-le popup ou en désinstallant l'extension.
+**Stockage.** L'horaire extrait est conservé dans le stockage local de l'extension, dans
+votre navigateur (Chrome ou Firefox), sur votre ordinateur. Vous pouvez l'effacer à tout
+moment depuis le popup ou en désinstallant l'extension.
 
 **Transmission.** Aucune donnée n'est envoyée à un serveur, à l'auteur de l'extension ni
 à un tiers. Le fichier de calendrier (.ics) est généré localement et vous seul décidez où
-l'importer. Le bouton « Signaler un bug » ouvre un formulaire pré-rempli avec la version
-de l'extension et le trimestre, jamais avec vos données d'horaire.
+l'importer. Le bouton « Ajouter à Google Agenda » ouvre Google Agenda avec le titre, la
+date et le local de l'événement, seulement quand vous cliquez dessus. Le bouton « Signaler
+un bug » ouvre un formulaire GitHub pré-rempli avec la version de l'extension, le trimestre
+et le nom de votre navigateur, jamais avec vos données d'horaire.

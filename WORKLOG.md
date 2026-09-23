@@ -20,9 +20,13 @@
   (iCalendar valide, 60 événements dont 27 échéances StudiUM, aucun UID en double).
   `web-ext lint` : 0 erreur, 0 avertissement. Build reproductible : un clone propre en fins
   de ligne LF + `npm ci` + `npm run build:firefox` donne un `dist-firefox/` identique.
-- À trancher par l'auteur avant AMO : `data_collection_permissions` = `none` alors que le
-  bouton « Ajouter à Google Agenda » envoie titre, date et local à Google au clic ;
-  identifiant Gecko `synchro-calendrier@moncade.com`, définitif une fois publié.
+- **Soumis sur addons.mozilla.org le 2026-09-23** (canal « On this site », slug
+  `clientside-horaire`, licence MIT, catégorie Alerts & Updates), avec le code source
+  (`git archive` de 516454c sans `.claude/`). `data_collection_permissions` gardé à `none` ;
+  le bouton « Ajouter à Google Agenda » est déclaré dans la politique de confidentialité et
+  dans les notes aux relecteurs. `docs/PRIVACY.md` aligné sur le texte envoyé à AMO (Google
+  Agenda, navigateur dans le formulaire de bug, stockage sans nom d'API Chrome).
+- Chrome : la 0.3.1 (correctif `mergeCapture`) reste à téléverser sur le Chrome Web Store.
 
 ## 2026-09-10 après-midi — Phase 13 : échéances cochables, notes en opt-in, onglets
 
