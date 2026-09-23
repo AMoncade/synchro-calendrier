@@ -47,8 +47,13 @@ Le dossier `dist/` apparaît à la racine. C'est lui que vous chargerez.
    qu'aucune erreur rouge n'est affichée.
 
 Edge, Brave, Opera et Vivaldi acceptent la même procédure (`edge://extensions`,
-`brave://extensions`, …). Pour Firefox, voir `FIREFOX.md` : le portage n'est pas encore
-fait.
+`brave://extensions`, …).
+
+**Firefox** (140 ou plus récent) : construisez `dist-firefox/` avec `npm run build:firefox`,
+ouvrez `about:debugging#/runtime/this-firefox`, cliquez **Charger un module complémentaire
+temporaire…** et choisissez `dist-firefox/manifest.json`. Firefox retire un module temporaire
+à sa fermeture : pour une installation durable, il faut la version signée publiée sur
+addons.mozilla.org. Détails dans `FIREFOX.md`.
 
 ### Épingler l'icône
 

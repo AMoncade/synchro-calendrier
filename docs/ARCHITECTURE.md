@@ -147,6 +147,8 @@ le rapport de fin**, il ne se commite pas sur la branche.
 4. Examens, badge, compte à rebours.
 5. Conflits, mode « coller mon horaire », signalement de bug.
 6. Publication (icônes, captures, politique de confidentialité, Web Store), port Firefox.
+   Port Firefox fait le 2026-09-23 (0.3.1) : seconde sortie de build `dist-firefox/` par
+   `scripts/firefox.mjs`, aucun code propre à Firefox dans `src/` — voir `docs/FIREFOX.md`.
 
 Hors portée v1 : synchronisation Google Calendar par OAuth, Safari.
 

@@ -1,16 +1,18 @@
 {
   "name": "synchro-calendrier",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Extension Chrome : exporte l'horaire du Centre étudiant UdeM (Synchro) en calendrier ICS, avec examens et détection de conflits.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:firefox": "npm run build && node scripts/firefox.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "icons": "node scripts/make-icons.mjs",
     "package": "npm run build && node scripts/package.mjs",
+    "package:firefox": "npm run build:firefox && node scripts/package.mjs --source dist-firefox --suffix -firefox",
     "store-shots": "node scripts/store-shots.mjs"
   },
   "devDependencies": {

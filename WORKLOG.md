@@ -1,5 +1,28 @@
 # WORKLOG — Synchro Calendrier UdeM
 
+## 2026-09-23 — Phase 14 : port Firefox, 0.3.1
+
+- Demande : une personne sous Firefox a demandé l'extension. Port fait sans code propre à
+  Firefox dans `src/` : seconde sortie `dist-firefox/` par `scripts/firefox.mjs`
+  (`npm run build:firefox`, `npm run package:firefox` → `…-firefox.zip` via le nouveau
+  `--suffix` de `package.mjs`). Aucune dépendance ajoutée : le script réutilise l'API de
+  build de Vite. Détails et sources : `docs/FIREFOX.md` ; instructions pour les relecteurs
+  AMO : `BUILD-FIREFOX.md`.
+- L'audit du 2026-09-09 se trompait sur son blocage n° 2 : Firefox MV3 renvoie des promesses
+  sur `chrome.*`. Le vrai blocage était le chargeur de content scripts de CRXJS
+  (`import()` dynamique, Firefox bug 1803950 ouvert) : content scripts reconstruits en IIFE.
+- **Défaut commun à Chrome corrigé** : `mergeCapture` perdait tout l'état non-Synchro
+  (StudiUM, échéances, cochées, masquées, liaisons, notes) à chaque capture Synchro, depuis la
+  phase 2. Vu sous Firefox (le popup revenait à « ouvrez StudiUM une fois »), test rouge puis
+  vert dans `tests/store.test.ts`. La 0.3.0 du Chrome Web Store l'a : la 0.3.1 est à soumettre.
+- Terrain (Firefox, session réelle de l'utilisateur) : capture Synchro OK, synchro StudiUM OK,
+  état StudiUM conservé après un retour sur Synchro. `web-ext lint` : 0 erreur, 0
+  avertissement. **Non vérifié** : le téléchargement du `.ics` depuis le popup (profil de
+  test mal réglé pour les téléchargements).
+- À trancher par l'auteur avant AMO : `data_collection_permissions` = `none` alors que le
+  bouton « Ajouter à Google Agenda » envoie titre, date et local à Google au clic ;
+  identifiant Gecko `synchro-calendrier@moncade.com`, définitif une fois publié.
+
 ## 2026-09-10 après-midi — Phase 13 : échéances cochables, notes en opt-in, onglets
 
 - Demande de l'utilisateur après la première synchro réelle : cocher un quiz fait ; un menu

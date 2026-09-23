@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ClientSide Horaire",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Non officiel. Horaire Synchro en calendrier .ics, examens, conflits, échéances et notes StudiUM. Tout reste sur votre ordinateur.",
   "permissions": [
     "storage",

@@ -63,6 +63,10 @@ Puis dans Chrome :
 L'icône du calendrier apparaît dans la barre d'outils. Épinglez-la pour voir le badge des
 cours restants dans la journée.
 
+Pour Firefox (140 ou plus récent) : `npm run build:firefox`, puis
+`about:debugging#/runtime/this-firefox` → **Charger un module complémentaire temporaire…** →
+`dist-firefox/manifest.json`. Voir [`docs/FIREFOX.md`](docs/FIREFOX.md).
+
 ## Utilisation
 
 1. Connectez-vous au **Centre étudiant** sur Synchro.

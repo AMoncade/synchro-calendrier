@@ -13,7 +13,8 @@
 //   - archive déterministe : entrées triées, horodatage fixe (SOURCE_DATE_EPOCH
 //     si défini), donc deux builds identiques donnent deux zips identiques.
 //
-// Usage : node scripts/package.mjs [--out <dossier>] [--source <dossier>]
+// Usage : node scripts/package.mjs [--out <dossier>] [--source <dossier>] [--suffix <texte>]
+//   --suffix -firefox → synchro-calendrier-<version>-firefox.zip, à côté du zip Chrome.
 
 import { createHash } from "node:crypto";
 import { deflateRawSync } from "node:zlib";
@@ -181,7 +182,7 @@ function main(argv) {
   const zip = buildZip(entries, modifiedAt);
 
   mkdirSync(outDir, { recursive: true });
-  const outPath = join(outDir, `synchro-calendrier-${version}.zip`);
+  const outPath = join(outDir, `synchro-calendrier-${version}${arg("--suffix", "")}.zip`);
   writeFileSync(outPath, zip);
 
   const raw = entries.reduce((n, e) => n + e.data.length, 0);

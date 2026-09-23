@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-firefox/
 *.zip
 .vite/
 tests/fixtures/*.raw.html
