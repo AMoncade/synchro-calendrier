@@ -24,7 +24,7 @@ Vérifié ce jour-là dans Firefox, sur la vraie session de l'utilisateur :
 | Capture Synchro (« Votre horaire cours », vue Liste) → popup | OK |
 | Synchronisation StudiUM (menu ⋯ → Synchroniser StudiUM) | OK |
 | Retour sur Synchro après StudiUM : l'état StudiUM survit | OK (après correctif, voir plus bas) |
-| Téléchargement du `.ics` depuis le popup | **à confirmer** : le premier essai a été faussé par un réglage de dossier de téléchargement cassé dans le profil de test |
+| Téléchargement du `.ics` depuis le popup | OK : fichier iCalendar valide, 60 événements (cours, examens, échéances StudiUM), aucun UID en double |
 
 ## Ce qui diffère de la sortie Chrome
 

@@ -16,9 +16,10 @@
   phase 2. Vu sous Firefox (le popup revenait à « ouvrez StudiUM une fois »), test rouge puis
   vert dans `tests/store.test.ts`. La 0.3.0 du Chrome Web Store l'a : la 0.3.1 est à soumettre.
 - Terrain (Firefox, session réelle de l'utilisateur) : capture Synchro OK, synchro StudiUM OK,
-  état StudiUM conservé après un retour sur Synchro. `web-ext lint` : 0 erreur, 0
-  avertissement. **Non vérifié** : le téléchargement du `.ics` depuis le popup (profil de
-  test mal réglé pour les téléchargements).
+  état StudiUM conservé après un retour sur Synchro, téléchargement du `.ics` depuis le popup
+  (iCalendar valide, 60 événements dont 27 échéances StudiUM, aucun UID en double).
+  `web-ext lint` : 0 erreur, 0 avertissement. Build reproductible : un clone propre en fins
+  de ligne LF + `npm ci` + `npm run build:firefox` donne un `dist-firefox/` identique.
 - À trancher par l'auteur avant AMO : `data_collection_permissions` = `none` alors que le
   bouton « Ajouter à Google Agenda » envoie titre, date et local à Google au clic ;
   identifiant Gecko `synchro-calendrier@moncade.com`, définitif une fois publié.
