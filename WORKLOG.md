@@ -1,5 +1,30 @@
 # WORKLOG — Synchro Calendrier UdeM
 
+## 2026-10-30 — Phase 15 : onglet « Prochaine session » (en cours, branche `prochaine-session`)
+
+Brief de l'utilisateur : `Downloads/brief-claude-code.md`. Plan approuvé :
+`~/.claude/plans/dazzling-soaring-engelbart.md`.
+
+- **Dépendance ajoutée : `@clientside-labs/moteur`** (`vendor/clientside-labs-moteur-0.2.0.tgz`).
+  Justification : le moteur de Plan ton bacc (préalables, audit des blocs, offre, prochaine
+  session, combinaisons d'horaire) recopié ici divergerait. Il vient compilé, sans DOM ni Node,
+  d'une façade de `AMoncade/udem-plan-ton-bacc` (`packages/moteur`, commit gravé dans
+  `dist/PROVENANCE.json` : `328b159`). C'est une archive versée dans le dépôt et non un
+  `file:../`, pour que `npm ci` reste reproductible (exigence AMO). Mise à jour : voir
+  `packages/moteur/README.md` du dépôt source.
+- `vitest.config.ts` : `server.deps.inline` pour ce paquet. Il est compilé pour un bundler
+  (imports sans extension, import JSON), et Node seul ne le charge pas.
+- Catalogue (`src/core/catalogue.ts` pur, `src/catalogue/remote.ts` réseau et stockage
+  injectés) : de simples GET sur `https://udem-plan-ton-bacc.vercel.app/donnees/`, **sans
+  nouvelle permission**. Vercel sert ces fichiers avec `Access-Control-Allow-Origin: *`,
+  épinglé dans `vercel.json` du dépôt source. Ce point est encore à éprouver dans Chrome et Firefox.
+  `version.json` dit ce qui a bougé ; seuls les sujets modifiés sont relus.
+- Mesure sur le bacc en mathématiques, orientation Statistique : l'assemblage complet du
+  moteur suivait les préalables jusqu'à 57 sujets (5,1 Mo de cache). Avec un seul tour (option
+  `toursMax` ajoutée au moteur) et en ne gardant que les fiches utiles : 12 requêtes et 1,9 Mo
+  au premier chargement, puis 206 ko en cache, et seul `version.json` est relu ensuite.
+- `CLEAR_ALL` efface aussi `synchro-calendrier.catalogue.v1` et `synchro-calendrier.parcours.v1`.
+
 ## 2026-09-23 — Phase 14 : port Firefox, 0.3.1
 
 - Demande : une personne sous Firefox a demandé l'extension. Port fait sans code propre à

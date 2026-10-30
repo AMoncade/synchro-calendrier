@@ -61,3 +61,9 @@ export interface StoredState {
 }
 
 export const STORAGE_KEY = "synchro-calendrier.v1";
+
+// Phase 15 — onglet « Prochaine session »
+/** Catalogue de Plan ton bacc mis en cache (src/catalogue/remote.ts). */
+export const CATALOGUE_CACHE_KEY = "synchro-calendrier.catalogue.v1";
+/** Programme choisi et cours déjà faits, déclarés par l'étudiant au premier lancement. */
+export const PATHWAY_KEY = "synchro-calendrier.parcours.v1";
