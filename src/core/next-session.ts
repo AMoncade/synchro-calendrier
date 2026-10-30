@@ -48,6 +48,13 @@ import type { Schedule } from "./model";
 export const DEFAULT_CREDITS = 15;
 /** Grilles distinctes au plus, pour ◀ ▶ : au-delà, l'étudiant doit affiner. */
 export const MAX_OPTIONS = 20;
+/**
+ * Combinaisons énumérées au plus. Le moteur tronque AVANT le regroupement en
+ * grilles, dans l'ordre de découverte : avec son plafond par défaut (200), deux
+ * cents combinaisons peuvent toutes donner la même semaine et cacher les autres.
+ * Son budget de recherche borne la latence quoi qu'il arrive.
+ */
+const COMBINATION_CAP = 2000;
 
 // ---------------------------------------------------------------------------
 // Parcours déclaré par l'étudiant (stocké sous PATHWAY_KEY)
@@ -469,7 +476,7 @@ export function summarizeSelection(
     else credits += fiche.credits;
   }
 
-  const result = combinaisons(fiches, target);
+  const result = combinaisons(fiches, target, { plafond: COMBINATION_CAP });
   const grids = grillesDistinctes(result, fiches, target);
   const byCode = new Map(fiches.map((f) => [f.code, f]));
   const options = grids.grilles.slice(0, max).map((g): ScheduleOption => {
@@ -503,7 +510,7 @@ export function summarizeSelection(
     unknownCredits,
     options,
     conflictFree: Math.min(grids.sansConflit, options.length),
-    truncated: result.tronque || grids.grilles.length > max,
+    truncated: grids.tronque || grids.grilles.length > max,
     unknownSchedule: [...missing, ...result.horaireInconnu],
     undetermined: result.indetermines,
     reserve: RESERVE_APERCU,
