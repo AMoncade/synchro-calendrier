@@ -16,6 +16,7 @@
       <button role="tab" id="tab-week" aria-controls="panel-week" aria-selected="false" data-tab="week" tabindex="-1">Semaine</button>
       <button role="tab" id="tab-exams" aria-controls="panel-exams" aria-selected="false" data-tab="exams" tabindex="-1">Examens</button>
       <button role="tab" id="tab-grades" aria-controls="panel-grades" aria-selected="false" data-tab="grades" tabindex="-1">Notes</button>
+      <button role="tab" id="tab-next" aria-controls="panel-next" aria-selected="false" data-tab="next" tabindex="-1" title="Prochaine session">Prochaine session</button>
     </nav>
 
     <main id="main">
@@ -78,6 +79,8 @@
         <p id="grades-status" class="dim"></p>
         <div id="grades-list"></div>
       </section>
+
+      <section id="panel-next" role="tabpanel" aria-labelledby="tab-next" class="ns" hidden></section>
 
       <section id="paste-panel" class="fallback" hidden>
         <p class="fallback-title">Coller un horaire mis à jour</p>

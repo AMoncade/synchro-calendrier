@@ -53,7 +53,9 @@ body {
 h1 { font-size: 15px; margin: 0; font-weight: 600; }
 .term { color: var(--muted); font-size: 12px; }
 
-.tabs { display: flex; gap: 18px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+/* Cinq onglets depuis la phase 15 : 14 px d'écart pour tenir en 380 px ; si un libellé
+   déborde quand même, la barre défile au lieu de couper. */
+.tabs { display: flex; gap: 14px; padding: 0 16px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
 .tabs [role="tab"] {
   flex: 0 0 auto; justify-content: center; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);
   padding: 8px 2px 9px; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; margin-bottom: -1px;
@@ -224,3 +226,43 @@ a { color: var(--accent); }
 .grade-row .grade { font-weight: 600; color: var(--fg); }
 .grade-row.total { border-top: 2px solid var(--line); font-weight: 600; }
 .grade-row.cat .name { color: var(--fg-2); font-weight: 600; }
+
+/* --- Onglet « Prochaine session » (phase 15, src/popup/next-session.ts) --- */
+.ns > * + * { margin-top: 12px; }
+.ns-search { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; }
+.ns-search:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.ns-results { display: flex; flex-direction: column; gap: 4px; }
+.ns-result { justify-content: flex-start; text-align: left; width: 100%; }
+.ns-choices { display: flex; flex-direction: column; gap: 4px; }
+.ns-group { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 0; }
+.ns-group legend, .ns-group summary { font-weight: 600; font-size: 12px; cursor: pointer; }
+.ns-check { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; font-size: 12px; }
+.ns-head p { margin: 0; }
+.ns-inline { background: none; color: var(--accent); padding: 0; font-size: 12px; text-decoration: underline; }
+.ns-list { display: flex; flex-direction: column; gap: 2px; }
+.ns-row { display: flex; gap: 8px; align-items: flex-start; padding: 6px 4px; border-radius: 6px; cursor: pointer; }
+.ns-row:hover { background: var(--bg-2); }
+.ns-row input { margin-top: 2px; }
+.ns-row-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ns-row-title { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.ns-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; align-self: center; }
+.ns-reasons { color: var(--fg-2); font-size: 12px; }
+.ns-warn { color: var(--warn-fg); background: var(--warn-bg); font-size: 11.5px; padding: 2px 6px; border-radius: 4px; }
+.ns-more > summary { color: var(--accent); font-size: 12px; cursor: pointer; padding: 4px; }
+.ns-total { font-weight: 600; margin: 0; }
+.ns-nav { display: flex; align-items: center; gap: 8px; }
+.ns-nav-label { flex: 1; text-align: center; font-size: 12px; }
+.ns-arrow { padding: 4px 8px; }
+.ns-grid { display: grid; column-gap: 2px; font-size: 10px; }
+.ns-grid-day { text-align: center; color: var(--muted); padding-bottom: 2px; }
+.ns-grid-hours { position: relative; }
+.ns-grid-hours span { position: absolute; right: 2px; transform: translateY(-50%); color: var(--muted); font-size: 9px; }
+.ns-grid-col { position: relative; background: var(--bg-2); border-radius: 4px; }
+.ns-case {
+  position: absolute; left: 1px; right: 1px; overflow: hidden; box-sizing: border-box;
+  background: var(--bg); border: 1px solid var(--line); border-left: 3px solid var(--muted); border-radius: 3px;
+  padding: 1px 2px; line-height: 1.15; font-size: 9.5px; white-space: normal; word-break: break-word;
+}
+.ns-case.ns-conflict { border-color: var(--error); background: color-mix(in srgb, var(--error) 14%, var(--bg)); }
+.ns-footer > * + * { margin-top: 6px; }
+.ns-link { color: var(--accent); font-weight: 600; }

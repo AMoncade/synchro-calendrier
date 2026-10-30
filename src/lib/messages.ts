@@ -67,3 +67,5 @@ export const STORAGE_KEY = "synchro-calendrier.v1";
 export const CATALOGUE_CACHE_KEY = "synchro-calendrier.catalogue.v1";
 /** Programme choisi et cours déjà faits, déclarés par l'étudiant au premier lancement. */
 export const PATHWAY_KEY = "synchro-calendrier.parcours.v1";
+/** Cours cochés pour la prochaine session : le popup se ferme au moindre clic à côté. */
+export const NEXT_SELECTION_KEY = "synchro-calendrier.prochaine-session.v1";

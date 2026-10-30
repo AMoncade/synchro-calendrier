@@ -7,7 +7,7 @@ import { excludedDates } from "../core/calendar-udem";
 import { markStudiumFailed, mergeStudium, removeDeadline, setCourseLink, setDeadlineDone, upsertDeadline } from "../core/deadlines";
 import { expandSchedule } from "../core/expand";
 import { currentTerm, emptyState, mergeCapture } from "../core/store";
-import { CATALOGUE_CACHE_KEY, PATHWAY_KEY, STORAGE_KEY, type Message, type StoredState } from "../lib/messages";
+import { CATALOGUE_CACHE_KEY, NEXT_SELECTION_KEY, PATHWAY_KEY, STORAGE_KEY, type Message, type StoredState } from "../lib/messages";
 
 const ALARM = "badge-refresh";
 const BADGE_COLOR = "#0f56a9";
@@ -92,6 +92,7 @@ async function handle(message: Message): Promise<unknown> {
         "synchro-calendrier.studium-force-next",
         CATALOGUE_CACHE_KEY,
         PATHWAY_KEY,
+        NEXT_SELECTION_KEY,
       ]);
       await chrome.action.setBadgeText({ text: "" });
       return { ok: true };
