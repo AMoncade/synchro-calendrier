@@ -40,7 +40,8 @@ describe("manifeste Firefox", () => {
       gecko: GECKO,
       gecko_android: GECKO_ANDROID,
     });
-    expect(GECKO.data_collection_permissions).toEqual({ required: ["none"] });
+    // Déclarée depuis la 0.4.0 : contenu de site transmis à Google Agenda (voir docs/FIREFOX.md).
+    expect(GECKO.data_collection_permissions).toEqual({ required: ["websiteContent"] });
   });
 
   it("pointe les content scripts vers les IIFE, hôtes, cadres et moment d'injection repris de la source", () => {

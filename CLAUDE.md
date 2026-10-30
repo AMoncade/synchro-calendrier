@@ -22,7 +22,7 @@ modifier le document **et** consigner le changement dans le WORKLOG.
 ## Règles
 
 - **Une session = une phase.** Ne pas anticiper la phase suivante.
-- **Tests verts avant tout commit** : `npx vitest run` puis `npm run build`
+- **Tests verts avant tout commit** : `npm test` puis `npm run build`
   (= `tsc --noEmit` + build Vite). Citer le SHA dans tout rapport.
 - **Aucun projet externe comme référence.** Ce qui est vrai de Synchro se vérifie sur
   Synchro (fixtures dans `tests/fixtures/`) ; le calendrier universitaire se vérifie sur
@@ -43,7 +43,7 @@ modifier le document **et** consigner le changement dans le WORKLOG.
 
 ```
 npm ci                 # installer (Node 24)
-npx vitest run         # tests unitaires (happy-dom)
+npm test               # tests unitaires (happy-dom) ; jamais `npx` : il télécharge un paquet absent
 npm run build          # tsc --noEmit + vite build → dist/
 ```
 

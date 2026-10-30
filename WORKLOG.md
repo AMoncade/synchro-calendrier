@@ -41,6 +41,12 @@ Brief de l'utilisateur : `Downloads/brief-claude-code.md`. Plan approuvé :
   examinateurs sur le téléchargement sans autorisation d'hôte), README, CLAUDE.md,
   BUILD-FIREFOX, et FIREFOX (seconde zone grise `data_collection_permissions` : le nom du
   fichier de programme demandé révèle le programme à l'hébergeur).
+- Firefox (décision de l'utilisateur, 2026-10-30) : `data_collection_permissions` passe de
+  `none` à `required: ["websiteContent"]`, pour le bouton Google Agenda. Le nom du fichier de
+  programme téléchargé reste déclaré dans la politique de confidentialité (aucune catégorie ne
+  le décrit exactement). Raisonnement et citation : docs/FIREFOX.md.
+- Plus de `npx` dans les commandes documentées (`npm test`), et `npx --no-install` pour
+  `web-ext`, qui n'est pas une dépendance.
 - Version 0.4.0 (manifest, package.json). Permissions inchangées, vérifié sur `dist/` et
   `dist-firefox/`.
 - Relecture indépendante (10 constats), corrigés : cours inscrits toujours cochés (la sélection

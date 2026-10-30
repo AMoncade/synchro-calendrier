@@ -30,6 +30,8 @@ et les fiches de ses cours. Aucune donnée vous concernant ne part avec ces requ
 horaire, ni vos cours, ni vos notes. Comme pour toute visite d'un site web, l'hébergeur
 (Vercel) voit votre adresse IP et le nom du fichier demandé, donc le programme consulté.
 Aucun fichier n'est demandé à cause d'un cours que vous suivez hors de votre programme.
+Sous Firefox, l'extension déclare la catégorie « contenu de sites web » (`websiteContent`)
+pour le bouton « Ajouter à Google Agenda » décrit plus bas.
 Le programme que vous choisissez et les cours que vous cochez comme déjà faits restent dans
 le stockage local.
 

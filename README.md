@@ -142,7 +142,7 @@ d'un coup.
 
 ```bash
 npm ci                      # installer les dépendances (Node 24)
-npx vitest run              # tests unitaires
+npm test                    # tests unitaires
 npm run build               # tsc --noEmit + build Vite → dist/
 npm run icons               # régénérer les PNG depuis assets/icon.svg
 npm run package             # build + zip prêt pour le Chrome Web Store
@@ -175,7 +175,7 @@ ouverte en vue Liste :
    des tableaux par le texte de leurs en-têtes, jamais par les identifiants PeopleSoft) et
    le parsing du texte dans `src/core/parse.ts`. Les fixtures réelles anonymisées sont dans
    `tests/fixtures/` : ajoutez la nouvelle page (anonymisée avec
-   `node scripts/scrub-fixture.mjs <fichier>`), faites passer `npx vitest run`, ouvrez une
+   `node scripts/scrub-fixture.mjs <fichier>`), faites passer `npm test`, ouvrez une
    pull request. Sans fixture, un correctif de parser n'est pas vérifiable.
 
 ## Licence
