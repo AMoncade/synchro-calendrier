@@ -28,11 +28,18 @@ const ROOT = resolve(import.meta.dirname, "..");
  * 140 (bureau) et 142 (Android) : premières versions qui connaissent
  * `data_collection_permissions`, clé exigée par AMO pour toute nouvelle extension
  * depuis le 2025-11-03.
+ *
+ * `websiteContent` et non `none` depuis la 0.4.0 (décision de l'auteur,
+ * 2026-10-30). Le bouton « Ajouter à Google Agenda » envoie à Google le titre, la
+ * date et le local d'un cours lus sur la page Synchro. C'est du contenu de site,
+ * défini comme « anything visible on a website […] and request and response
+ * information » (Extension Workshop, Firefox built-in data consent). Voir
+ * docs/FIREFOX.md.
  */
 export const GECKO = {
   id: "synchro-calendrier@moncade.com",
   strict_min_version: "140.0",
-  data_collection_permissions: { required: ["none"] },
+  data_collection_permissions: { required: ["websiteContent"] },
 };
 export const GECKO_ANDROID = { strict_min_version: "142.0" };
 

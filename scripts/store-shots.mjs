@@ -15,6 +15,8 @@ const names = {
   4: "4-detail-cours",
   5: "5-demain",
   6: "6-notes",
+  7: "7-prochaine-session",
+  8: "8-horaires-possibles",
 };
 
 for (const file of readdirSync(dir).filter((f) => /^raw-\d\.png$/.test(f))) {

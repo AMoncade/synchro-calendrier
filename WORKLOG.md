@@ -1,5 +1,61 @@
 # WORKLOG — Synchro Calendrier UdeM
 
+## 2026-10-30 — Phase 15 : onglet « Prochaine session », 0.4.0 (branche `prochaine-session`, pas poussée)
+
+Brief de l'utilisateur : `Downloads/brief-claude-code.md`. Plan approuvé :
+`~/.claude/plans/dazzling-soaring-engelbart.md`.
+
+- **Dépendance ajoutée : `@clientside-labs/moteur`** (`vendor/clientside-labs-moteur-0.3.0.tgz`).
+  Justification : le moteur de Plan ton bacc (préalables, audit des blocs, offre, prochaine
+  session, combinaisons d'horaire) recopié ici divergerait. Il vient compilé, sans DOM ni Node,
+  d'une façade de `AMoncade/udem-plan-ton-bacc` (`packages/moteur`, commit gravé dans
+  `dist/PROVENANCE.json` : `2a759ed`). C'est une archive versée dans le dépôt et non un
+  `file:../`, pour que `npm ci` reste reproductible (exigence AMO). Mise à jour : voir
+  `packages/moteur/README.md` du dépôt source.
+- `vitest.config.ts` : `server.deps.inline` pour ce paquet. Il est compilé pour un bundler
+  (imports sans extension, import JSON), et Node seul ne le charge pas.
+- Catalogue (`src/core/catalogue.ts` pur, `src/catalogue/remote.ts` réseau et stockage
+  injectés) : de simples GET sur `https://udem-plan-ton-bacc.vercel.app/donnees/`, **sans
+  nouvelle permission**. Vercel sert ces fichiers avec `Access-Control-Allow-Origin: *`,
+  épinglé dans `vercel.json` du dépôt source. Ce point est encore à éprouver dans Chrome et Firefox.
+  `version.json` dit ce qui a bougé ; seuls les sujets modifiés sont relus.
+- Mesure sur le bacc en mathématiques, orientation Statistique : l'assemblage complet du
+  moteur suivait les préalables jusqu'à 57 sujets (5,1 Mo de cache). Avec un seul tour (option
+  `toursMax` ajoutée au moteur) et en ne gardant que les fiches utiles : 12 requêtes et 1,9 Mo
+  au premier chargement, puis 206 ko en cache, et seul `version.json` est relu ensuite.
+- `CLEAR_ALL` efface aussi `synchro-calendrier.catalogue.v1`, `synchro-calendrier.parcours.v1`
+  et `synchro-calendrier.prochaine-session.v1`.
+- Onglet (ARCHITECTURE §9) : premier lancement en trois écrans (programme, cheminement si exigé,
+  cours faits sans rien de coché d'avance ; cours en cours présumés réussis, désactivables),
+  puis recommandations cochées avec leurs raisons, recalcul en direct, « N horaires sans
+  conflit » avec flèches précédent et suivant, grille de la semaine, conflits en rouge par séance,
+  « horaire inconnu » et sections ambiguës à part, et lien « Voir l'audit complet → » (fragment `#`).
+- Vérifié dans un banc d'essai (dist/ servi en local, faux `chrome.*`, capture A26 réelle,
+  données de la branche `moteur-partage` de Plan ton bacc). Pour le bacc en mathématiques,
+  orientation Statistique, Hiver 2027 : MAT 1720, MAT 1000, STT 2400, PHY 1651, STT 1682, soit
+  15 cr., avec 2 grilles distinctes dont 1 sans conflit. PHY 1651 est en sections ambiguës.
+- **Pas encore éprouvé** : l'extension chargée pour de vrai (Chrome et Firefox), parce que le
+  fetch sans permission d'hôte depuis l'origine `chrome-extension://` exige que `version.json`
+  soit déployé sur Vercel, donc un push de Plan ton bacc.
+- Docs : PRIVACY, STORE (résumé de 128 caractères, objectif unique élargi, note aux
+  examinateurs sur le téléchargement sans autorisation d'hôte), README, CLAUDE.md,
+  BUILD-FIREFOX, et FIREFOX (seconde zone grise `data_collection_permissions` : le nom du
+  fichier de programme demandé révèle le programme à l'hébergeur).
+- Firefox (décision de l'utilisateur, 2026-10-30) : `data_collection_permissions` passe de
+  `none` à `required: ["websiteContent"]`, pour le bouton Google Agenda. Le nom du fichier de
+  programme téléchargé reste déclaré dans la politique de confidentialité (aucune catégorie ne
+  le décrit exactement). Raisonnement et citation : docs/FIREFOX.md.
+- Plus de `npx` dans les commandes documentées (`npm test`), et `npx --no-install` pour
+  `web-ext`, qui n'est pas une dépendance.
+- Version 0.4.0 (manifest, package.json). Permissions inchangées, vérifié sur `dist/` et
+  `dist-firefox/`.
+- Relecture indépendante (10 constats), corrigés : cours inscrits toujours cochés (la sélection
+  ne s'enregistre qu'au clic), cours du trimestre terminé « à confirmer » au lieu de disparaître,
+  aucun sujet téléchargé pour un cours hors programme (confidentialité), cache d'un autre contrat
+  jamais réutilisé, `version.json` illisible = incompatible, rendus concurrents et exceptions du
+  popup gardés, codes Synchro refusés affichés. Restent mineurs : titre d'un préalable absent du
+  cache dans un cas rare, cache écrasé par un programme essayé puis abandonné.
+
 ## 2026-09-23 — Phase 14 : port Firefox, 0.3.1
 
 - Demande : une personne sous Firefox a demandé l'extension. Port fait sans code propre à

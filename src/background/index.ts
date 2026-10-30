@@ -7,7 +7,7 @@ import { excludedDates } from "../core/calendar-udem";
 import { markStudiumFailed, mergeStudium, removeDeadline, setCourseLink, setDeadlineDone, upsertDeadline } from "../core/deadlines";
 import { expandSchedule } from "../core/expand";
 import { currentTerm, emptyState, mergeCapture } from "../core/store";
-import { STORAGE_KEY, type Message, type StoredState } from "../lib/messages";
+import { CATALOGUE_CACHE_KEY, NEXT_SELECTION_KEY, PATHWAY_KEY, STORAGE_KEY, type Message, type StoredState } from "../lib/messages";
 
 const ALARM = "badge-refresh";
 const BADGE_COLOR = "#0f56a9";
@@ -86,7 +86,14 @@ async function handle(message: Message): Promise<unknown> {
     case "CLEAR_ALL": {
       // Le tampon anti-rafale du content script StudiUM part aussi : « Effacer » doit
       // permettre une resynchronisation immédiate à la prochaine visite.
-      await chrome.storage.local.remove([STORAGE_KEY, "synchro-calendrier.studium-last-run", "synchro-calendrier.studium-force-next"]);
+      await chrome.storage.local.remove([
+        STORAGE_KEY,
+        "synchro-calendrier.studium-last-run",
+        "synchro-calendrier.studium-force-next",
+        CATALOGUE_CACHE_KEY,
+        PATHWAY_KEY,
+        NEXT_SELECTION_KEY,
+      ]);
       await chrome.action.setBadgeText({ text: "" });
       return { ok: true };
     }

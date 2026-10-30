@@ -5,9 +5,16 @@ Extension Chrome qui transforme l'horaire du Centre étudiant de l'Université d
 ou Apple Calendrier, la liste de vos conflits d'horaire, et un compte à rebours des
 examens directement sur l'icône de la barre d'outils.
 
-**Tout se passe dans votre navigateur.** Aucun serveur, aucun compte, aucune clé d'API :
-l'extension lit la page Synchro que vous avez vous-même ouverte, garde le résultat dans le
-stockage local de Chrome, et n'envoie rien nulle part. Voir
+L'onglet **Prochaine session** propose les cours du trimestre suivant (environ cinq,
+cochés d'avance, chacun avec sa raison), recalcule en direct les crédits et les horaires
+possibles sans conflit, et affiche la grille de la semaine. Le moteur et le catalogue
+viennent de [Plan ton bacc](https://udem-plan-ton-bacc.vercel.app) (même auteur), dont le
+lien « Voir l'audit complet » ouvre l'audit détaillé.
+
+**Tout se passe dans votre navigateur.** Aucun serveur à vous, aucun compte, aucune clé
+d'API : l'extension lit la page Synchro que vous avez vous-même ouverte, garde le résultat
+dans le stockage local de Chrome, et n'envoie aucune donnée vous concernant. Elle télécharge
+seulement le catalogue public de Plan ton bacc (de simples GET de fichiers JSON). Voir
 [docs/PRIVACY.md](docs/PRIVACY.md).
 
 ![Onglet Aujourd'hui](docs/store/1-aujourdhui.png)
@@ -135,7 +142,7 @@ d'un coup.
 
 ```bash
 npm ci                      # installer les dépendances (Node 24)
-npx vitest run              # tests unitaires
+npm test                    # tests unitaires
 npm run build               # tsc --noEmit + build Vite → dist/
 npm run icons               # régénérer les PNG depuis assets/icon.svg
 npm run package             # build + zip prêt pour le Chrome Web Store
@@ -168,7 +175,7 @@ ouverte en vue Liste :
    des tableaux par le texte de leurs en-têtes, jamais par les identifiants PeopleSoft) et
    le parsing du texte dans `src/core/parse.ts`. Les fixtures réelles anonymisées sont dans
    `tests/fixtures/` : ajoutez la nouvelle page (anonymisée avec
-   `node scripts/scrub-fixture.mjs <fichier>`), faites passer `npx vitest run`, ouvrez une
+   `node scripts/scrub-fixture.mjs <fichier>`), faites passer `npm test`, ouvrez une
    pull request. Sans fixture, un correctif de parser n'est pas vérifiable.
 
 ## Licence

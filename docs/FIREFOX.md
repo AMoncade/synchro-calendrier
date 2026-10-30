@@ -13,8 +13,11 @@ Essai à la main, avec un profil jetable (les connexions Synchro et StudiUM se f
 fenêtre ouverte) :
 
 ```
-npx web-ext run --source-dir dist-firefox --firefox-profile <dossier> --profile-create-if-missing --keep-profile-changes
+npx --no-install web-ext run --source-dir dist-firefox --firefox-profile <dossier> --profile-create-if-missing --keep-profile-changes
 ```
+
+`web-ext` n'est PAS une dépendance du dépôt : l'installer d'abord, sinon `--no-install` échoue au
+lieu de télécharger un paquet du même nom (incident `tsc@2.0.4`, 2026-10-30, côté Plan ton bacc).
 
 Vérifié ce jour-là dans Firefox, sur la vraie session de l'utilisateur :
 
@@ -69,7 +72,7 @@ retire `web_accessible_resources`, qui ne servait qu'à ces chargeurs.
   "gecko": {
     "id": "synchro-calendrier@moncade.com",
     "strict_min_version": "140.0",
-    "data_collection_permissions": { "required": ["none"] }
+    "data_collection_permissions": { "required": ["websiteContent"] }
   },
   "gecko_android": { "strict_min_version": "142.0" }
 }
@@ -84,10 +87,24 @@ retire `web_accessible_resources`, qui ne servait qu'à ces chargeurs.
   > outside the add-on or the local browser.
   > — [Extension Workshop, Firefox built-in data consent](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)
 
-  `none` décrit l'extension : tout est lu et gardé dans le navigateur. **Zone grise à trancher
-  par l'auteur avant la soumission** : le bouton « Ajouter à Google Agenda » ouvre une URL
-  Google qui contient le titre, la date et le local du cours, au clic de l'utilisateur. La page
-  citée ne prévoit aucune exception pour une action déclenchée par l'utilisateur.
+  **Tranché le 2026-10-30 (0.4.0) : `required: ["websiteContent"]`**, à la place de `none`.
+  La page citée définit `websiteContent` comme « anything visible on a website — such as
+  text, images, videos, and links — and anything embedded, such as cookies, audio, page
+  headers, and request and response information ». C'est ce que transmet le bouton
+  « Ajouter à Google Agenda » : le titre, la date et le local d'un cours lus sur la page
+  Synchro, envoyés à Google au clic de l'utilisateur. La page ne prévoit aucune exception pour
+  une action déclenchée par l'utilisateur.
+
+  L'onglet Prochaine session télécharge le catalogue de Plan ton bacc. Ces requêtes ne portent
+  aucune donnée de l'étudiant, mais le NOM du fichier de programme demandé
+  (`programmes/<slug>.json`) dit à l'hébergeur quel programme est consulté. Aucune catégorie
+  de la liste ne le décrit exactement : `browsingActivity` vise les sites que l'utilisateur
+  visite, `personallyIdentifyingInfo` les coordonnées et identifiants. C'est déclaré dans la
+  politique de confidentialité et à redire dans les notes aux relecteurs.
+
+  Conséquence pour les utilisateurs déjà installés : d'après le même article, Firefox demande
+  de nouveau le consentement quand une mise à jour ajoute une catégorie `required`. À
+  vérifier sur la 0.4.0 publiée ; le résumé de l'article ne cite pas de phrase exacte.
 
 ## Ce que l'audit du 2026-09-09 disait de faux
 

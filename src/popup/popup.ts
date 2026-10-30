@@ -1,4 +1,5 @@
-// Popup v2 : trois onglets (Aujourd'hui, Semaine, Examens), pied de page fixe,
+// Popup v2 : onglets Aujourd'hui, Semaine, Examens, Notes et Prochaine session (phase 15,
+// rendu dans next-session.ts), pied de page fixe,
 // menu, repli « coller un horaire » visible seulement quand la capture manque.
 // Tout le calcul vient de core/ et format/ ; ici il n'y a que du rendu, des
 // messages et un peu d'état d'interface (onglet courant, sections dépliées).
@@ -35,6 +36,8 @@ import {
 import { GRADES_OPT_IN_KEY, type Message, type StoredState } from "../lib/messages";
 import type { GradeItem, GradeReport } from "../core/model";
 import { bullet, icon } from "./icons";
+import { nextSessionTabLabel, renderNextSession } from "./next-session";
+import { PALETTE } from "./palette";
 
 const SYNCHRO_URL = "https://academique-dmz.synchro.umontreal.ca/";
 const REPORT_URL = "https://github.com/AMoncade/synchro-calendrier/issues/new";
@@ -52,14 +55,8 @@ const DAYS_LEFT_HORIZON = 45;
 /** Aperçu « le reste de la semaine » sous l'onglet Aujourd'hui. */
 const PREVIEW_MAX = 4;
 
-/**
- * Palette fixe, huit couleurs bien séparées, attribuées aux sigles triés :
- * la même couleur pour un cours dans les trois onglets, et deux cours voisins
- * (MAT1500 / MAT1600) ne tombent jamais sur deux bleus.
- */
-const PALETTE = ["#2f7de1", "#e0603c", "#2ba36b", "#c8449b", "#e6a417", "#7b5cd6", "#1fa8b9", "#8a6d3b"];
 
-type Tab = "today" | "week" | "exams" | "grades";
+type Tab = "today" | "week" | "exams" | "grades" | "next";
 interface UiState {
   tab: Tab;
   openedAt: number;
@@ -634,16 +631,21 @@ function selectTab(tab: Tab, focus = false): void {
   $("panel-week").hidden = tab !== "week";
   $("panel-exams").hidden = tab !== "exams";
   $("panel-grades").hidden = tab !== "grades";
+  $("panel-next").hidden = tab !== "next";
   $("paste-panel").hidden = true;
   $("deadline-panel").hidden = true;
   $("link-panel").hidden = true;
   if (tab === "grades" && currentView) void renderGrades(currentView);
+  if (tab === "next" && currentView) {
+    const now = localNow();
+    void renderNextSession($("panel-next"), { state: currentView.state, current: currentView.schedule, today: now.date, nowIso: now.iso });
+  }
   // Revenir sur Aujourd'hui après un moment ailleurs : recalculer « dans X min ».
   if (tab === "today" && currentView) renderToday(currentView, localNow());
 }
 
 function wireTabs(): void {
-  const order: Tab[] = ["today", "week", "exams", "grades"];
+  const order: Tab[] = ["today", "week", "exams", "grades", "next"];
   for (const btn of document.querySelectorAll<HTMLButtonElement>("#tabs [role=tab]")) {
     btn.addEventListener("click", () => selectTab(btn.dataset["tab"] as Tab));
     btn.addEventListener("keydown", (ev) => {
@@ -671,13 +673,13 @@ function wireMenu(): void {
     if (ev.key === "Escape") close();
   });
   $("menu-paste").addEventListener("click", () => {
-    for (const p of ["panel-today", "panel-week", "panel-exams", "panel-grades", "deadline-panel", "link-panel"]) $(p).hidden = true;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "panel-grades", "panel-next", "deadline-panel", "link-panel"]) $(p).hidden = true;
     $("paste-panel").hidden = false;
     $<HTMLTextAreaElement>("paste-2").focus();
   });
   $("paste-cancel").addEventListener("click", () => selectTab(ui.tab));
   const showPanel = (id: string) => {
-    for (const p of ["panel-today", "panel-week", "panel-exams", "panel-grades", "paste-panel", "deadline-panel", "link-panel"]) $(p).hidden = p !== id;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "panel-grades", "panel-next", "paste-panel", "deadline-panel", "link-panel"]) $(p).hidden = p !== id;
   };
   $("grades-optin").addEventListener("change", () => void setGradesOptIn($<HTMLInputElement>("grades-optin").checked));
   $("menu-deadline").addEventListener("click", () => {
@@ -986,11 +988,12 @@ function render(state: StoredState): void {
   if (!schedule) {
     $("term").textContent = "";
     currentView = null;
-    for (const p of ["panel-today", "panel-week", "panel-exams", "panel-grades", "paste-panel", "deadline-panel", "link-panel"]) $(p).hidden = true;
+    for (const p of ["panel-today", "panel-week", "panel-exams", "panel-grades", "panel-next", "paste-panel", "deadline-panel", "link-panel"]) $(p).hidden = true;
     return;
   }
 
   $("term").textContent = schedule.term.label;
+  $("tab-next").textContent = nextSessionTabLabel(now.date);
   const excluded = excludedDates(schedule.term.code);
   const occurrences = expandSchedule(schedule, { excludedDates: excluded });
   const view: View = { state, schedule, occurrences, excluded, deadlines: allDeadlines(state) };
