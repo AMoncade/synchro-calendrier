@@ -43,6 +43,12 @@ Brief de l'utilisateur : `Downloads/brief-claude-code.md`. Plan approuvé :
   fichier de programme demandé révèle le programme à l'hébergeur).
 - Version 0.4.0 (manifest, package.json). Permissions inchangées, vérifié sur `dist/` et
   `dist-firefox/`.
+- Relecture indépendante (10 constats), corrigés : cours inscrits toujours cochés (la sélection
+  ne s'enregistre qu'au clic), cours du trimestre terminé « à confirmer » au lieu de disparaître,
+  aucun sujet téléchargé pour un cours hors programme (confidentialité), cache d'un autre contrat
+  jamais réutilisé, `version.json` illisible = incompatible, rendus concurrents et exceptions du
+  popup gardés, codes Synchro refusés affichés. Restent mineurs : titre d'un préalable absent du
+  cache dans un cas rare, cache écrasé par un programme essayé puis abandonné.
 
 ## 2026-09-23 — Phase 14 : port Firefox, 0.3.1
 
