@@ -23,6 +23,8 @@ import {
   buildModel,
   cheminementsOf,
   conflictKey,
+  initialSelection,
+  rollOver,
   doneChecklist,
   parsePathway,
   searchPrograms,
@@ -124,6 +126,23 @@ let indexPromise: Promise<IndexPrepare> | null = null;
 /** Brouillon du premier lancement, gardé entre les écrans. */
 let draft: { fiche: FicheIndex; assembled: CatalogueAssemble; cheminement: string | null } | null = null;
 let optionIndex = 0;
+/**
+ * Rendu en cours : une suite asynchrone dont la génération n'est plus la
+ * dernière ne touche plus au DOM. Sans ça, revenir sur l'onglet pendant un
+ * chargement lance deux rendus, et le plus lent écrase le plus récent.
+ */
+let generation = 0;
+/**
+ * Ce que l'onglet affiche déjà (parcours enregistré et date). Le popup rappelle
+ * `renderNextSession` à chaque sélection de l'onglet, après un « Annuler » ou un
+ * retour au clavier : tant que cette clé ne change pas, l'écran en place (une
+ * saisie en cours, notamment) est gardé tel quel.
+ */
+let shownKey: string | null = null;
+
+function errorText(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
 
 function prepared(): Promise<IndexPrepare> {
   indexPromise ??= fetchIndex(httpFetchJson()).then(preparerIndex);
@@ -138,12 +157,25 @@ export async function renderNextSession(panel: HTMLElement, ctx: NextSessionCont
   const target = targetTerm(ctx.today);
   const courses = studentCourses(ctx.state.schedules, ctx.current, target);
   const pathway = await readPathway();
-  if (pathway === null) {
-    if (draft !== null) showDone(panel, ctx, courses, null);
-    else showProgramSearch(panel, ctx, courses);
-    return;
+  const key = `${pathway?.savedAt ?? "aucun"}|${ctx.today}`;
+  if (key === shownKey && panel.childElementCount > 0) return;
+  // Parcours effacé (« Effacer les données ») : le brouillon d'une modification
+  // en cours ne doit pas ressusciter l'ancien programme.
+  if (pathway === null && shownKey !== null && !shownKey.startsWith("aucun|")) draft = null;
+  shownKey = key;
+  const gen = ++generation;
+  try {
+    if (pathway === null) {
+      if (draft !== null) showDone(panel, ctx, courses, null);
+      else showProgramSearch(panel, ctx, courses);
+      return;
+    }
+    await showMain(panel, ctx, pathway, courses, gen);
+  } catch (e) {
+    if (gen !== generation) return;
+    shownKey = null;
+    failure(panel, `Erreur inattendue : ${errorText(e)}`, () => void renderNextSession(panel, ctx));
   }
-  await showMain(panel, ctx, pathway, courses);
 }
 
 /** Libellé de l'onglet : le trimestre visé (« Hiver 2027 »). */
@@ -219,11 +251,14 @@ async function chooseProgram(
   courses: StudentCourses,
   fiche: FicheIndex,
 ): Promise<void> {
+  const gen = ++generation;
   loading(panel, "Chargement du programme…");
   try {
     const r = await loadFor(fiche.cle, [...courses.inProgress, ...courses.registered], ctx);
+    if (gen !== generation) return;
     draft = { fiche, assembled: r.assembled, cheminement: null };
   } catch (e) {
+    if (gen !== generation) return;
     failure(panel, e instanceof Error ? e.message : String(e), () => showProgramSearch(panel, ctx, courses));
     return;
   }
@@ -290,6 +325,9 @@ function showDone(panel: HTMLElement, ctx: NextSessionContext, courses: StudentC
     "Coche les cours réussis aux sessions passées. Rien n'est coché d'avance : Synchro ne montre que la session en cours.",
   );
   const parts: HTMLElement[] = [title, help];
+  if (courses.rejected.length > 0) {
+    parts.push(el("p", "notice", `Codes de ton horaire non reconnus, ignorés : ${courses.rejected.join(", ")}.`));
+  }
 
   if (courses.inProgress.length > 0) {
     const box = el("fieldset", "ns-group");
@@ -319,7 +357,9 @@ function showDone(panel: HTMLElement, ctx: NextSessionContext, courses: StudentC
       const label = el("label", "ns-check");
       const cb = el("input") as HTMLInputElement;
       cb.type = "checkbox";
-      cb.checked = editing?.done.includes(c.code) ?? false;
+      // En modification, les cours d'un trimestre terminé encore « à confirmer »
+      // arrivent cochés : c'est ce que l'écran présumait, et l'étudiant tranche ici.
+      cb.checked = (editing?.done.includes(c.code) ?? false) || (editing?.toConfirm?.includes(c.code) ?? false);
       if (cb.checked) checked += 1;
       doneBoxes.set(c.code, cb);
       label.append(cb, document.createTextNode(`${c.code}${c.title ? ` · ${c.title}` : ""}`));
@@ -339,13 +379,21 @@ function showDone(panel: HTMLElement, ctx: NextSessionContext, courses: StudentC
         cheminement: d.cheminement,
         done: [...doneBoxes].filter(([, cb]) => cb.checked).map(([code]) => code),
         excludedInProgress: [...progressBoxes].filter(([, cb]) => !cb.checked).map(([code]) => code),
-        savedAt: ctx.nowIso,
+        // L'étudiant vient de tout revoir : plus rien « à confirmer ».
+        toConfirm: [],
+        savedAt: new Date().toISOString(),
       };
-      void savePathway(p).then(() => {
-        draft = null;
-        optionIndex = 0;
-        void showMain(panel, ctx, p, courses);
-      });
+      if (courses.inProgressLabel !== null) p.inProgressSeen = { label: courses.inProgressLabel, codes: [...courses.inProgress] };
+      savePathway(p).then(
+        () => {
+          draft = null;
+          optionIndex = 0;
+          openMain(panel, ctx, p, courses);
+        },
+        (e: unknown) => {
+          row.append(el("p", "error", `Enregistrement impossible : ${errorText(e)}`));
+        },
+      );
     }),
     button("Changer de programme", () => {
       draft = null;
@@ -359,23 +407,49 @@ function showDone(panel: HTMLElement, ctx: NextSessionContext, courses: StudentC
 // ---------------------------------------------------------------------------
 // Écran principal
 
-async function showMain(panel: HTMLElement, ctx: NextSessionContext, pathway: Pathway, courses: StudentCourses): Promise<void> {
+/** Ouvre l'écran principal pour un parcours qui vient d'être enregistré. */
+function openMain(panel: HTMLElement, ctx: NextSessionContext, p: Pathway, courses: StudentCourses): void {
+  shownKey = `${p.savedAt}|${ctx.today}`;
+  const gen = ++generation;
+  showMain(panel, ctx, p, courses, gen).catch((e: unknown) => {
+    if (gen !== generation) return;
+    failure(panel, `Erreur inattendue : ${errorText(e)}`, () => openMain(panel, ctx, p, courses));
+  });
+}
+
+async function showMain(
+  panel: HTMLElement,
+  ctx: NextSessionContext,
+  initialPathway: Pathway,
+  courses: StudentCourses,
+  gen: number,
+): Promise<void> {
   loading(panel, "Chargement des cours…");
+  // Changement de trimestre depuis la dernière ouverture : les cours de l'ancien
+  // trimestre passent « à confirmer » (voir `rollOver`).
+  let pathway = initialPathway;
+  const rolled = rollOver(pathway, courses);
+  if (rolled !== null) {
+    pathway = rolled;
+    await savePathway(rolled).catch(() => undefined);
+  }
   let result: LoadResult;
   try {
-    result = await loadFor(pathway.cle, [...pathway.done, ...courses.inProgress, ...courses.registered], ctx);
+    result = await loadFor(pathway.cle, [...pathway.done, ...(pathway.toConfirm ?? []), ...courses.inProgress, ...courses.registered], ctx);
   } catch (e) {
+    if (gen !== generation) return;
     const message = e instanceof CatalogueUnavailable || e instanceof Error ? e.message : String(e);
-    failure(panel, message, () => void showMain(panel, ctx, pathway, courses));
+    failure(panel, message, () => openMain(panel, ctx, pathway, courses));
     return;
   }
+  if (gen !== generation) return;
 
   const target = targetTerm(ctx.today);
   const model = buildModel({ assembled: result.assembled, pathway, courses, target });
   const termCode = codeOfTrimestre(target);
   const saved = await readSelection(pathway.cle, termCode);
-  const offered = new Set([...model.proposals, ...model.withoutEffect].map((p) => p.code));
-  const chosen = new Set<CodeCours>((saved ?? model.initial).filter((c) => offered.has(c)));
+  if (gen !== generation) return;
+  const chosen = new Set<CodeCours>(initialSelection(model, saved, courses.registered));
 
   // Couleurs : distinctes ENTRE COURS COCHÉS (ce sont eux qui partagent la
   // grille). Un cours garde sa couleur tant qu'aucun autre coché ne la porte ;
@@ -405,21 +479,23 @@ async function showMain(panel: HTMLElement, ctx: NextSessionContext, pathway: Pa
     return d;
   };
 
+  function editPathway(): void {
+    draft = {
+      fiche: { cle: pathway.cle, nom: pathway.label, orientation: null } as FicheIndex,
+      assembled: result.assembled,
+      cheminement: pathway.cheminement,
+    };
+    // Les écrans rouvrent avec les choix déjà enregistrés.
+    if (cheminementsOf(result.assembled.programme).length > 0) showCheminement(panel, ctx, courses, pathway);
+    else showDone(panel, ctx, courses, pathway);
+  }
+
   const head = el("div", "ns-head");
   const headTitle = el("p", "fallback-title", `${model.label} · ce que tu peux prendre`);
   const headSub = el("p", "dim");
   headSub.append(
     document.createTextNode(`${pathway.label}${pathway.cheminement ? ` · ${pathway.cheminement}` : ""} · `),
-    button("Modifier", () => {
-      draft = {
-        fiche: { cle: pathway.cle, nom: pathway.label, orientation: null } as FicheIndex,
-        assembled: result.assembled,
-        cheminement: pathway.cheminement,
-      };
-      // Les écrans rouvrent avec les choix déjà enregistrés.
-      if (cheminementsOf(result.assembled.programme).length > 0) showCheminement(panel, ctx, courses, pathway);
-      else showDone(panel, ctx, courses, pathway);
-    }, "ns-inline"),
+    button("Modifier", () => editPathway(), "ns-inline"),
   );
   head.append(headTitle, headSub);
 
@@ -429,6 +505,27 @@ async function showMain(panel: HTMLElement, ctx: NextSessionContext, pathway: Pa
     notices.push(el("p", "notice", "Plan ton bacc a changé le format de ses données : mets à jour l'extension. En attendant, les données gardées en cache sont affichées."));
   }
   if (model.needsCheminement) notices.push(el("p", "notice", "Ce programme exige un cheminement : choisis-le avec « Modifier »."));
+  if (courses.rejected.length > 0) {
+    notices.push(el("p", "notice", `Codes de ton horaire non reconnus, ignorés : ${courses.rejected.join(", ")}.`));
+  }
+  const pending = pathway.toConfirm ?? [];
+  if (pending.length > 0) {
+    const box = el("div", "notice");
+    box.append(el("p", "", `Trimestre terminé : as-tu réussi ${pending.join(", ")} ? Ils restent comptés réussis jusqu'à ta réponse.`));
+    const actions = el("div", "row");
+    actions.append(
+      button("Oui, tous", () => {
+        const p: Pathway = { ...pathway, done: [...new Set([...pathway.done, ...pending])], toConfirm: [], savedAt: new Date().toISOString() };
+        savePathway(p).then(
+          () => openMain(panel, ctx, p, courses),
+          (e: unknown) => actions.append(el("p", "error", `Enregistrement impossible : ${errorText(e)}`)),
+        );
+      }),
+      button("Pas tous : modifier", () => editPathway(), "secondary"),
+    );
+    box.append(actions);
+    notices.push(box);
+  }
 
   const list = el("div", "ns-list");
   const summaryBox = el("div", "ns-summary");
@@ -436,14 +533,25 @@ async function showMain(panel: HTMLElement, ctx: NextSessionContext, pathway: Pa
 
   const rerender = (): void => {
     assignColors();
+    try {
+      const sel = summarizeSelection(result.assembled.catalogue.cours, [...chosen], target);
+      summaryBox.replaceChildren(summaryLine(chosen.size, sel.credits, sel.unknownCredits));
+      if (optionIndex >= sel.options.length) optionIndex = 0;
+      scheduleBox.replaceChildren(...scheduleView(sel, colorOf, rerender, chosen.size));
+    } catch (e) {
+      scheduleBox.replaceChildren(el("p", "error", `Horaires non calculables : ${errorText(e)}`));
+    }
+  };
+  // Enregistrée seulement quand l'étudiant coche ou décoche : écrire la
+  // proposition dès l'ouverture la figerait, et des cours inscrits plus tard
+  // dans Synchro arriveraient décochés.
+  const onSelectionChange = (): void => {
     saveSelection({ cle: pathway.cle, term: termCode, codes: [...chosen] });
-    const sel = summarizeSelection(result.assembled.catalogue.cours, [...chosen], target);
-    summaryBox.replaceChildren(summaryLine(chosen.size, sel.credits, sel.unknownCredits));
-    if (optionIndex >= sel.options.length) optionIndex = 0;
-    scheduleBox.replaceChildren(...scheduleView(sel, colorOf, rerender, chosen.size));
+    optionIndex = 0;
+    rerender();
   };
 
-  const row = (p: Proposal): HTMLElement => proposalRow(p, chosen, rerender, dotFor);
+  const row = (p: Proposal): HTMLElement => proposalRow(p, chosen, onSelectionChange, dotFor);
   const shown = model.proposals.slice(0, SHOWN_PROPOSALS);
   const hidden = model.proposals.slice(SHOWN_PROPOSALS);
   list.append(...shown.map(row));

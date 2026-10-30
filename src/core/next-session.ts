@@ -63,6 +63,17 @@ export interface Pathway {
   done: CodeCours[];
   /** Cours en cours que l'étudiant ne compte PAS réussir. */
   excludedInProgress: CodeCours[];
+  /**
+   * Le dernier horaire « en cours » vu (libellé du trimestre et cours). Sert à
+   * détecter le changement de trimestre : sans lui, les cours de l'automne,
+   * présumés réussis tout l'automne, disparaîtraient en janvier sans un mot.
+   */
+  inProgressSeen?: { label: string; codes: CodeCours[] };
+  /**
+   * Cours d'un trimestre TERMINÉ, présumés réussis jusqu'à ce que l'étudiant
+   * confirme (ils passent alors dans `done`) ou les retire.
+   */
+  toConfirm?: CodeCours[];
   savedAt: string;
 }
 
@@ -74,7 +85,7 @@ export function parsePathway(raw: unknown): Pathway | null {
   if (typeof v.cle !== "string" || v.cle === "" || typeof v.label !== "string") return null;
   if (v.cheminement !== null && typeof v.cheminement !== "string") return null;
   if (!strings(v.done) || !strings(v.excludedInProgress) || typeof v.savedAt !== "string") return null;
-  return {
+  const p: Pathway = {
     cle: v.cle,
     label: v.label,
     cheminement: v.cheminement,
@@ -82,6 +93,64 @@ export function parsePathway(raw: unknown): Pathway | null {
     excludedInProgress: v.excludedInProgress,
     savedAt: v.savedAt,
   };
+  const seen = v.inProgressSeen as { label?: unknown; codes?: unknown } | undefined;
+  if (seen !== undefined) {
+    if (typeof seen !== "object" || seen === null || typeof seen.label !== "string" || !strings(seen.codes)) return null;
+    p.inProgressSeen = { label: seen.label, codes: seen.codes };
+  }
+  if (v.toConfirm !== undefined) {
+    if (!strings(v.toConfirm)) return null;
+    p.toConfirm = v.toConfirm;
+  }
+  return p;
+}
+
+/**
+ * Le trimestre en cours a-t-il changé depuis la dernière ouverture ? Si oui, les
+ * cours de l'ancien trimestre (sauf ceux que l'étudiant avait écartés ou déjà
+ * cochés réussis) passent « à confirmer » : toujours présumés réussis, et
+ * l'écran demande de confirmer. Rend le parcours à enregistrer, ou `null` si
+ * rien ne change.
+ */
+export function rollOver(pathway: Pathway, courses: StudentCourses): Pathway | null {
+  if (courses.inProgressLabel === null) return null;
+  const seen = pathway.inProgressSeen;
+  const current = { label: courses.inProgressLabel, codes: [...courses.inProgress] };
+  if (seen !== undefined && seen.label === current.label && seen.codes.join() === current.codes.join()) return null;
+  const toConfirm = [...(pathway.toConfirm ?? [])];
+  if (seen !== undefined && seen.label !== current.label) {
+    for (const c of seen.codes) {
+      if (pathway.excludedInProgress.includes(c) || pathway.done.includes(c) || toConfirm.includes(c)) continue;
+      if (current.codes.includes(c)) continue; // repris ce trimestre-ci : toujours en cours
+      toConfirm.push(c);
+    }
+  }
+  return {
+    ...pathway,
+    // Un écart ne vaut que pour le trimestre où il a été fait.
+    excludedInProgress:
+      seen !== undefined && seen.label !== current.label
+        ? pathway.excludedInProgress.filter((c) => current.codes.includes(c))
+        : pathway.excludedInProgress,
+    inProgressSeen: current,
+    toConfirm,
+  };
+}
+
+/**
+ * Cours cochés à l'ouverture : la sélection enregistrée s'il y en a une, sinon
+ * la proposition du moteur — et TOUJOURS les cours déjà inscrits dans Synchro,
+ * qui l'emportent sur une sélection faite avant l'inscription.
+ */
+export function initialSelection(
+  model: NextSessionModel,
+  saved: readonly CodeCours[] | null,
+  registered: readonly CodeCours[],
+): CodeCours[] {
+  const offered = new Set([...model.proposals, ...model.withoutEffect].map((p) => p.code));
+  const out: CodeCours[] = [...registered];
+  for (const c of saved ?? model.initial) if (offered.has(c) && !out.includes(c)) out.push(c);
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,9 +190,13 @@ export function studentCourses(
   };
 }
 
-/** Ce qui compte comme acquis : cochés faits, plus en cours non exclus. */
+/**
+ * Ce qui compte comme acquis : cochés faits, plus en cours non exclus, plus les
+ * cours d'un trimestre terminé encore à confirmer (présumés, et affichés comme
+ * tels).
+ */
 export function factsOf(pathway: Pathway, inProgress: readonly CodeCours[]): Set<CodeCours> {
-  const facts = new Set<CodeCours>(pathway.done);
+  const facts = new Set<CodeCours>([...pathway.done, ...(pathway.toConfirm ?? [])]);
   for (const c of inProgress) if (!pathway.excludedInProgress.includes(c)) facts.add(c);
   return facts;
 }

@@ -9,7 +9,9 @@ import {
   buildModel,
   doneChecklist,
   factsOf,
+  initialSelection,
   parsePathway,
+  rollOver,
   searchPrograms,
   studentCourses,
   summarizeSelection,
@@ -96,7 +98,33 @@ describe("trimestre visé et cours de l'étudiant", () => {
     expect([...facts].sort()).toEqual(["IFT 1015", "MAT 1400", "MAT 1500", "STT 1700"]);
   });
 
+  it("changement de trimestre : les cours de l'ancien passent « à confirmer », toujours présumés réussis", () => {
+    const before = pathway({
+      done: ["IFT 1015"],
+      excludedInProgress: ["STT 1700"],
+      inProgressSeen: { label: "Automne 2026", codes: ["MAT 1400", "STT 1700", "IFT 1015"] },
+    });
+    const winter = { inProgress: ["MAT 2600"], inProgressLabel: "Hiver 2027", registered: [], rejected: [] };
+    const after = rollOver(before, winter);
+    // STT 1700 avait été écarté, IFT 1015 était déjà réussi : seul MAT 1400 reste à confirmer.
+    expect(after?.toConfirm).toEqual(["MAT 1400"]);
+    expect(after?.excludedInProgress).toEqual([]);
+    expect(after?.inProgressSeen).toEqual({ label: "Hiver 2027", codes: ["MAT 2600"] });
+    expect([...factsOf(after!, winter.inProgress)].sort()).toEqual(["IFT 1015", "MAT 1400", "MAT 2600"]);
+    // Rien de neuf à la réouverture suivante.
+    expect(rollOver(after!, winter)).toBeNull();
+  });
+
+  it("première ouverture : l'horaire en cours est noté, rien n'est « à confirmer »", () => {
+    const after = rollOver(pathway(), COURSES_A26);
+    expect(after?.inProgressSeen).toEqual({ label: "Automne 2026", codes: A26 });
+    expect(after?.toConfirm).toEqual([]);
+  });
+
   it("relit un parcours stocké, et refuse une forme inconnue", () => {
+    const full = pathway({ inProgressSeen: { label: "Automne 2026", codes: A26 }, toConfirm: ["MAT 1000"] });
+    expect(parsePathway(full)).toEqual(full);
+    expect(parsePathway({ ...full, toConfirm: "MAT 1000" })).toBeNull();
     expect(parsePathway(pathway())).toEqual(pathway());
     expect(parsePathway({ ...pathway(), done: "MAT 1400" })).toBeNull();
     expect(parsePathway({ ...pathway(), cle: "" })).toBeNull();
@@ -168,6 +196,16 @@ describe("recommandations sur le vrai catalogue (bacc en mathématiques, Statist
       target: H27,
     });
     expect(m.proposals.map((p) => p.code)).toContain("MAT 1400");
+  });
+
+  it("une sélection enregistrée AVANT l'inscription n'écarte pas les cours inscrits ensuite", async () => {
+    const assembled = await realCatalogue();
+    const courses = { ...COURSES_A26, registered: ["MAT 2600"] };
+    const m = buildModel({ assembled, pathway: pathway(), courses, target: H27 });
+    const saved = ["MAT 1720", "MAT 1000"];
+    expect(initialSelection(m, saved, courses.registered)).toEqual(["MAT 2600", "MAT 1720", "MAT 1000"]);
+    // Sans sélection enregistrée : les inscrits, puis rien d'autre (la proposition, c'est eux).
+    expect(initialSelection(m, null, courses.registered)).toEqual(["MAT 2600"]);
   });
 
   it("un cours déjà inscrit pour l'hiver passe en tête et reste coché", async () => {

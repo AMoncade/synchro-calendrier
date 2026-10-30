@@ -18,7 +18,7 @@ import type {
   IndexProgrammes,
   Programme,
 } from "@clientside-labs/moteur";
-import { assembler, lireCleParcours, normaliserCode, sujetDeCode } from "@clientside-labs/moteur";
+import { assembler, lireCleParcours, normaliserCode } from "@clientside-labs/moteur";
 import {
   DATA_BASE,
   dataDate,
@@ -68,9 +68,12 @@ export function httpFetchJson(
   };
 }
 
+/** `version.json` lu mais de forme inconnue : ce n'est pas une panne réseau. */
+export class VersionFormatError extends Error {}
+
 export async function fetchVersion(fetchJson: FetchJson): Promise<DataVersion> {
   const version = parseDataVersion(await fetchJson("version.json"));
-  if (version === null) throw new Error("version.json n'a pas la forme attendue.");
+  if (version === null) throw new VersionFormatError("version.json n'a pas la forme attendue.");
   return version;
 }
 
@@ -113,8 +116,12 @@ export class CatalogueUnavailable extends Error {
 interface LoadOptions {
   /** Clé de parcours de Plan ton bacc (`slug` ou `slug#orientation`). */
   cle: string;
-  /** Codes dont la fiche doit être chargée même si le programme ne les cite
-   *  pas : cours faits et en cours, pour que l'audit connaisse leurs crédits. */
+  /**
+   * Cours de l'étudiant (faits, en cours, inscrits) dont la fiche est GARDÉE si
+   * elle se trouve dans un sujet déjà chargé pour le programme. Aucun sujet
+   * n'est téléchargé à cause d'eux : le nom du fichier demandé révélerait au
+   * serveur le sigle d'un cours que l'étudiant suit hors de son programme.
+   */
   extraCodes?: readonly CodeCours[];
   storage: StorageArea;
   fetchJson: FetchJson;
@@ -133,13 +140,12 @@ async function readCache(storage: StorageArea): Promise<CatalogueCache | null> {
 
 /**
  * Assemble le parcours : les sujets cités par ses blocs SEULEMENT (un tour,
- * voir `OptionsAssemblage.toursMax` dans le moteur), plus les sujets des cours
- * hors programme, puis ne garde que les fiches utiles. Le même tri en ligne et
- * depuis le cache : l'écran ne doit pas changer selon d'où viennent les données.
+ * voir `OptionsAssemblage.toursMax` dans le moteur), puis ne garde que les
+ * fiches utiles. Le même tri en ligne et depuis le cache : l'écran ne doit pas
+ * changer selon d'où viennent les données.
  */
 async function assembleWith(depot: Depot, cle: string, extra: readonly CodeCours[]) {
   const assembled = await assembler(depot, cle, { toursMax: 1 });
-  await addExtraCourses(assembled, extra, depot);
   const needed = neededCodes(assembled.programme, assembled.catalogue.cours, extra);
   for (const code of Object.keys(assembled.catalogue.cours)) {
     if (!needed.has(code)) delete assembled.catalogue.cours[code];
@@ -160,35 +166,6 @@ async function assembleFromCache(cache: CatalogueCache, cle: string, extra: read
 }
 
 /**
- * Ajoute au catalogue assemblé les fiches des cours faits ou en cours que le
- * programme ne cite pas (cours au choix, bloc ouvert). Sans elles, l'audit les
- * compterait à crédits inconnus.
- */
-async function addExtraCourses(
-  assembled: CatalogueAssemble,
-  extra: readonly CodeCours[],
-  depot: Depot,
-): Promise<void> {
-  const loaded = new Set(assembled.sujets);
-  const missing = new Set<string>();
-  for (const code of extra) {
-    if (assembled.catalogue.cours[code] !== undefined) continue;
-    const sujet = sujetDeCode(code);
-    if (sujet !== null && !loaded.has(sujet)) missing.add(sujet);
-  }
-  for (const sujet of [...missing].sort()) {
-    for (const fiche of await depot.chargerSujet(sujet)) {
-      const code = normaliserCode(fiche.code);
-      if (code !== null && assembled.catalogue.cours[code] === undefined) {
-        assembled.catalogue.cours[code] = { ...fiche, code };
-      }
-    }
-    assembled.sujets.push(sujet);
-  }
-  assembled.sujets.sort();
-}
-
-/**
  * Le catalogue du parcours, à jour si le réseau répond, sinon depuis le cache.
  *
  * 1. `version.json` dit si les données ont bougé et si ce moteur sait les lire.
@@ -203,13 +180,33 @@ async function addExtraCourses(
 export async function loadCatalogue(options: LoadOptions): Promise<LoadResult> {
   const { cle, storage, fetchJson, now } = options;
   const extra = options.extraCodes ?? [];
-  const cache = await readCache(storage);
+  // Un cache écrit sous un autre contrat n'est pas lisible par CE moteur (mise à
+  // jour de l'extension) : il ne sert jamais de repli.
+  const stored = await readCache(storage);
+  const cache = stored !== null && isCompatible(stored.version) ? stored : null;
   const usable = cache !== null && cache.cle === cle ? cache : null;
 
   let version: DataVersion;
   try {
     version = await fetchVersion(fetchJson);
-  } catch {
+  } catch (cause) {
+    if (cause instanceof VersionFormatError) {
+      // Le serveur a répondu, dans une forme que ce moteur ne connaît pas : même
+      // traitement qu'un contrat incompatible, pas « hors ligne ».
+      if (usable === null) {
+        throw new CatalogueUnavailable(
+          "Les données de Plan ton bacc ont changé de format. Mets à jour l'extension pour les lire.",
+          "incompatible",
+        );
+      }
+      return {
+        assembled: await assembleFromCache(usable, cle, extra),
+        source: "cache",
+        offline: false,
+        incompatible: true,
+        dataDate: dataDate(usable.version),
+      };
+    }
     if (usable === null) {
       throw new CatalogueUnavailable(
         "Le catalogue de Plan ton bacc est injoignable et rien n'est en cache. Réessaie une fois en ligne.",

@@ -291,19 +291,45 @@ describe("loadCatalogue", () => {
     ).rejects.toMatchObject({ reason: "incompatible" });
   });
 
-  it("les cours faits hors programme font charger leur sujet, pour leurs crédits", async () => {
+  it("un cours suivi HORS programme ne fait télécharger aucun sujet (confidentialité)", async () => {
+    // Demander cours/PHI.json dirait au serveur que l'étudiant suit un cours PHI.
     const { fetchJson, asked } = server(() => version());
     const r = await loadCatalogue({
       cle: "bacc-test",
-      extraCodes: ["PHI 1000", "MAT 1400", "ZZZ 1000"],
+      extraCodes: ["PHI 1000", "MAT 1600", "ZZZ 1000"],
       storage: memoryStorage(),
       fetchJson,
       now: NOW,
     });
-    expect(asked).toContain("cours/PHI.json");
-    // ZZZ n'est pas publié : liste vide, aucune requête, pas de panne.
-    expect(asked).not.toContain("cours/ZZZ.json");
-    expect(r.assembled.catalogue.cours["PHI 1000"]).toBeDefined();
+    expect(asked).toEqual(["version.json", "programmes/bacc-test.json", "cours/MAT.json", "cours/STT.json"]);
+    expect(r.assembled.catalogue.cours["PHI 1000"]).toBeUndefined();
+    // Dans un sujet déjà chargé pour le programme, la fiche est gardée.
+    expect(r.assembled.catalogue.cours["MAT 1600"]).toBeDefined();
+  });
+
+  it("un cache écrit sous un autre contrat ne sert jamais de repli hors ligne", async () => {
+    const storage = memoryStorage();
+    let online = true;
+    const { fetchJson } = server(() => (online ? version() : new Error("Failed to fetch")));
+    await loadCatalogue({ cle: "bacc-test", storage, fetchJson, now: NOW });
+    (storage.data[CATALOGUE_CACHE_KEY] as { version: { contrat: number } }).version.contrat = VERSION_CONTRAT - 1;
+    online = false;
+    await expect(loadCatalogue({ cle: "bacc-test", storage, fetchJson, now: NOW })).rejects.toMatchObject({
+      reason: "offline",
+    });
+  });
+
+  it("un version.json de forme inconnue = données incompatibles, pas « hors ligne »", async () => {
+    const storage = memoryStorage();
+    let shape: unknown = version();
+    const fetchJson: FetchJson = async (path) => (path === "version.json" ? shape : server(() => version()).fetchJson(path));
+    await loadCatalogue({ cle: "bacc-test", storage, fetchJson, now: NOW });
+    shape = { format: "nouveau" };
+    const r = await loadCatalogue({ cle: "bacc-test", storage, fetchJson, now: NOW });
+    expect(r).toMatchObject({ incompatible: true, offline: false });
+    await expect(
+      loadCatalogue({ cle: "bacc-test", storage: memoryStorage(), fetchJson, now: NOW }),
+    ).rejects.toMatchObject({ reason: "incompatible" });
   });
 
   it("un stockage plein n'empêche pas l'onglet de marcher en ligne", async () => {
