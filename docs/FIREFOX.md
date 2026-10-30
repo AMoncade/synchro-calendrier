@@ -89,6 +89,13 @@ retire `web_accessible_resources`, qui ne servait qu'à ces chargeurs.
   Google qui contient le titre, la date et le local du cours, au clic de l'utilisateur. La page
   citée ne prévoit aucune exception pour une action déclenchée par l'utilisateur.
 
+  **Depuis la 0.4.0 (onglet Prochaine session), seconde zone grise** : le popup télécharge le
+  catalogue de Plan ton bacc. Les requêtes ne portent aucune donnée de l'étudiant, mais le
+  NOM du fichier de programme demandé (`programmes/<slug>.json`) dit à l'hébergeur quel
+  programme est consulté, comme pour tout visiteur du site. À trancher par l'auteur avant la
+  prochaine soumission AMO : garder `none` en le déclarant dans les notes aux relecteurs, ou
+  déclarer la catégorie correspondante.
+
 ## Ce que l'audit du 2026-09-09 disait de faux
 
 L'audit précédent (lu sur `a76293b`) annonçait deux blocages. Le second était faux :

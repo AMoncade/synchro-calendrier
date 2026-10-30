@@ -17,10 +17,10 @@ _(limite 75 caractères — 18 utilisés)_
 ## Résumé (limite 132 caractères)
 
 ```
-Non officiel. Horaire du Centre étudiant UdeM en .ics, examens, conflits, échéances et notes StudiUM, sans rien transmettre.
+Non officiel. Horaire UdeM en .ics, examens, conflits, échéances StudiUM et cours de la prochaine session. Rien de vous ne sort.
 ```
 
-_(121 caractères)_
+_(128 caractères)_
 
 ## Description détaillée
 
@@ -51,9 +51,13 @@ C'est la vue Liste qui contient tout : dates de début et de fin, locaux et exam
 
 VIE PRIVÉE
 
-Aucune donnée n'est transmise. L'extension lit la page Synchro que vous avez ouverte vous-même, garde le résultat dans le stockage local de Chrome, et ne communique avec aucun serveur autre que StudiUM, avec votre propre session. Pas de compte à créer, pas de clé, pas de statistiques d'usage. Vous effacez tout depuis le popup ou en désinstallant l'extension.
+Aucune donnée vous concernant n'est transmise. L'extension lit la page Synchro que vous avez ouverte vous-même, garde le résultat dans le stockage local de Chrome, et ne communique qu'avec StudiUM (avec votre propre session) et, pour l'onglet Prochaine session, avec le catalogue public de Plan ton bacc, qu'elle télécharge sans rien y envoyer. Pas de compte à créer, pas de clé, pas de statistiques d'usage. Vous effacez tout depuis le popup ou en désinstallant l'extension.
 
-Elle ne lit ni votre mot de passe ni aucune page autre que votre horaire, vos examens et le calendrier de StudiUM. Vos notes ne sont lues que si vous activez l'option « Notes », et restent sur votre ordinateur. Extension non officielle, sans lien avec l'Université de Montréal.
+Elle ne lit ni votre mot de passe ni aucune page autre que votre horaire, vos examens et le calendrier de StudiUM.
+
+PROCHAINE SESSION
+
+Un onglet propose environ cinq cours pour le trimestre suivant, cochés d'avance et chacun avec sa raison (obligatoire, débloque tel cours, offert seulement à l'hiver). Cochez ou décochez : les crédits, les horaires possibles sans conflit et la grille de la semaine se recalculent tout de suite. Au premier lancement, vous choisissez votre programme et cochez les cours déjà réussis ; rien n'est coché d'avance. Les cours et horaires viennent de Plan ton bacc, d'après les pages publiques d'admission.umontreal.ca ; un cours sans horaire publié est marqué « horaire inconnu », jamais « sans conflit ». Vos notes ne sont lues que si vous activez l'option « Notes », et restent sur votre ordinateur. Extension non officielle, sans lien avec l'Université de Montréal.
 
 LIMITES CONNUES
 
@@ -77,7 +81,7 @@ exacte du store évolue : à confirmer dans la console au moment de la soumissio
 Le store demande une phrase décrivant la fonction unique de l'extension :
 
 ```
-Rassembler en un seul endroit l'échéancier universitaire d'un étudiant de l'Université de Montréal — séances, examens, quiz et remises, et sur option ses notes — à partir des pages Synchro et StudiUM qu'il a lui-même ouvertes, et l'exporter en calendrier .ics. Tout est lu et conservé dans le navigateur ; rien n'est transmis.
+Rassembler en un seul endroit l'échéancier universitaire d'un étudiant de l'Université de Montréal — séances, examens, quiz et remises, sur option ses notes, et les cours qu'il peut prendre au trimestre suivant — à partir des pages Synchro et StudiUM qu'il a lui-même ouvertes, et l'exporter en calendrier .ics. Tout est lu et conservé dans le navigateur ; rien de l'étudiant n'est transmis.
 ```
 
 Les échéances StudiUM, l'export .ics et l'onglet Notes sont trois faces du même objet
@@ -112,6 +116,16 @@ Seul domaine où l'horaire de l'étudiant est affiché. Le script de contenu s'y
 ```
 Plateforme de cours de l'Université (Moodle) où sont publiés les quiz, remises et notes de l'étudiant. Le script de contenu s'exécute sur les pages StudiUM que l'utilisateur ouvre lui-même et interroge, avec sa session déjà ouverte et sans jeton, l'API de calendrier interne de Moodle (POST vers /lib/ajax/service.php : cinq vues mensuelles et la liste des sites de cours, au plus une fois par 30 minutes) pour en tirer les échéances. Si l'utilisateur active l'option « Notes » (désactivée par défaut), le script lit aussi le rapport de notes de chacun de ses sites de cours (GET vers /grade/report/user/index.php, une requête par site, dans la même synchronisation). Toutes ces requêtes vont vers studium.umontreal.ca uniquement, avec les identifiants de session du navigateur ; rien n'est transmis ailleurs et aucune donnée n'est stockée hors de chrome.storage.local.
 ```
+
+### Téléchargement du catalogue de Plan ton bacc, sans autorisation d'hôte
+
+À signaler si un examinateur pose la question : depuis la 0.4.0, le popup lit des fichiers
+JSON publics sur `https://udem-plan-ton-bacc.vercel.app/donnees/` (catalogue des
+programmes et des cours de l'UdeM, tiré des pages publiques d'admission.umontreal.ca par
+Plan ton bacc, du même auteur). Ce sont des GET sans paramètre, sans corps et sans
+identifiants (`credentials: "omit"`). Aucune autorisation d'hôte n'est ajoutée : le serveur
+répond avec `Access-Control-Allow-Origin: *`, donc ce sont des requêtes CORS ordinaires.
+Ce n'est pas du code distant : seules des données JSON sont lues, jamais exécutées.
 
 ### Absence de `tabs`, `scripting` et `downloads`
 
@@ -154,8 +168,9 @@ de cours ; (3) seulement si l'utilisateur active l'option « Notes », désactiv
 le rapport de notes de chacun de ses sites StudiUM — éléments d'évaluation, notes, valeurs
 possibles, pourcentages, moyennes du groupe. Tout est conservé uniquement dans
 `chrome.storage.local`, sur l'appareil, pour l'affichage du popup et la génération locale du
-fichier .ics. Les seules requêtes réseau vont vers studium.umontreal.ca, jamais vers l'auteur
-ni un tiers ; aucun jeton ni mot de passe n'est enregistré. L'utilisateur efface tout depuis
+fichier .ics. Les requêtes réseau vont vers studium.umontreal.ca et, pour l'onglet Prochaine session,
+vers le catalogue public de Plan ton bacc, qui ne reçoit aucune donnée de l'utilisateur :
+seulement des GET de fichiers publics. Aucun jeton ni mot de passe n'est enregistré. L'utilisateur efface tout depuis
 le popup (« Effacer les données » ; désactiver « Notes » efface les notes) ou en
 désinstallant.
 

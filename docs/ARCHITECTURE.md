@@ -251,3 +251,29 @@ Demande de l'utilisateur après la première synchro réelle. Trois sessions en 
 - **Affichage** : quatrième onglet « Notes » (d'abord un panneau de menu ; l'utilisateur a
   demandé l'onglet le 2026-09-10 en voyant la barre), un bloc par cours (sigle Synchro si lié), lignes
   nom / note / sur / moyenne du groupe, total du cours en pied, date de lecture.
+
+## 9. Prochaine session (phase 15, 2026-10-30)
+
+Brief : `Downloads/brief-claude-code.md`. Plan : `~/.claude/plans/dazzling-soaring-engelbart.md`.
+
+- **Moteur** : celui de Plan ton bacc, jamais recopié. `packages/moteur` de
+  AMoncade/udem-plan-ton-bacc est une façade sur `lib/` et `app/_lib/`, compilée sans DOM ni
+  Node, versée ici en archive (`vendor/clientside-labs-moteur-<version>.tgz`). Mise à jour :
+  `npm run moteur:paquet` là-bas, puis `npm install ./vendor/<archive>` ici.
+- **Données** : `src/catalogue/remote.ts` lit `https://udem-plan-ton-bacc.vercel.app/donnees/`
+  (`version.json`, `programmes/<id>.json`, `cours/<SUJET>.json`) par GET simples, sans
+  permission d'hôte (le serveur renvoie `Access-Control-Allow-Origin: *`). Un seul tour
+  d'assemblage (`toursMax: 1`), et seules les fiches utiles sont gardées dans
+  `synchro-calendrier.catalogue.v1` (environ 200 ko pour un bacc). `version.json` dit quels
+  sujets ont bougé, et `contrat` doit égaler `VERSION_CONTRAT` du moteur embarqué, sinon le
+  cache reste affiché.
+- **Étudiant** : `synchro-calendrier.parcours.v1` (programme, cheminement, cours faits
+  cochés, cours en cours écartés) ; `synchro-calendrier.prochaine-session.v1` (cours cochés
+  pour le trimestre visé). Les cours en cours sont ceux de l'horaire capturé, présumés réussis
+  et désactivables. Rien d'autre n'est présumé réussi.
+- **Écran** : `src/core/next-session.ts` (pur, testé) puis `src/popup/next-session.ts` (DOM).
+  Le trimestre visé vient de `prochainTrimestre(aujourd'hui)` (le 30 octobre, c'est l'hiver
+  suivant). Les combinaisons et les grilles distinctes viennent du moteur. Un cours sans séance
+  publiée ou à sections ambiguës est listé à part, jamais « sans conflit ».
+- **Lien** : « Voir l'audit complet → » ouvre `/audit#import=…` sur Plan ton bacc ; le
+  fragment n'est pas envoyé au serveur, et l'app web demande confirmation.

@@ -230,7 +230,7 @@ describe("sélection : crédits, combinaisons, grille", () => {
 
 describe("lien vers l'audit complet", () => {
   it("met le parcours dans le FRAGMENT, jamais dans la requête", () => {
-    const url = auditLink(pathway({ cheminement: null }), new Set(["MAT 1600", "MAT 1400"]));
+    const url = auditLink(pathway({ done: ["MAT 1400"], excludedInProgress: ["STT 1700"] }), ["MAT 1600", "STT 1700"]);
     const u = new URL(url);
     expect(u.origin).toBe("https://udem-plan-ton-bacc.vercel.app");
     expect(u.search).toBe("");
@@ -239,7 +239,9 @@ describe("lien vers l'audit complet", () => {
       v: 1,
       parcours: CLE,
       cheminement: null,
-      faits: ["MAT 1400", "MAT 1600"],
+      faits: ["MAT 1400"],
+      // Un cours en cours décoché par l'étudiant ne part pas.
+      enCours: ["MAT 1600"],
     });
   });
 });

@@ -24,7 +24,6 @@ import {
   cheminementsOf,
   conflictKey,
   doneChecklist,
-  factsOf,
   parsePathway,
   searchPrograms,
   studentCourses,
@@ -454,10 +453,9 @@ async function showMain(panel: HTMLElement, ctx: NextSessionContext, pathway: Pa
     list.append(collapsible(`Permis, mais sans effet sur ton diplôme (${model.withoutEffect.length})`, model.withoutEffect.map(row)));
   }
 
-  const facts = factsOf(pathway, courses.inProgress);
   const footer = el("div", "ns-footer");
   footer.append(
-    link("Voir l'audit complet →", auditLink(pathway, facts)),
+    link("Voir l'audit complet →", auditLink(pathway, courses.inProgress)),
     el(
       "p",
       "dim",

@@ -444,13 +444,17 @@ export function summarizeSelection(
  * Lien vers Plan ton bacc avec le parcours et les cours acquis dans le
  * FRAGMENT (`#…`), qui n'est jamais envoyé au serveur. L'app web demande une
  * confirmation avant d'importer quoi que ce soit, puis nettoie l'adresse.
+ *
+ * Réussis et en cours voyagent SÉPARÉMENT : l'app web doit pouvoir dire à
+ * l'étudiant que les seconds sont présumés réussis, comme le fait cet onglet.
  */
-export function auditLink(pathway: Pathway, facts: Iterable<CodeCours>): string {
+export function auditLink(pathway: Pathway, inProgress: readonly CodeCours[]): string {
   const payload = {
     v: 1,
     parcours: pathway.cle,
     cheminement: pathway.cheminement,
-    faits: [...facts].sort(),
+    faits: [...pathway.done].sort(),
+    enCours: inProgress.filter((c) => !pathway.excludedInProgress.includes(c)).sort(),
   };
   return `${WEB_APP}/audit#import=${encodeURIComponent(JSON.stringify(payload))}`;
 }

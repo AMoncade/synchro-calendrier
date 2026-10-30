@@ -33,5 +33,11 @@ submitted package (`npm run package:firefox` only zips that folder).
      loader) is removed.
 
 All dependencies are pinned by `package-lock.json`. None is loaded at run time from the
-network; the extension makes requests only to `*.synchro.umontreal.ca` and
-`studium.umontreal.ca` (content scripts, on the user's own logged-in session).
+network. `@clientside-labs/moteur` is a tarball committed in `vendor/` (compiled from the
+public repository AMoncade/udem-plan-ton-bacc, `packages/moteur`; the source commit is in
+`dist/PROVENANCE.json` inside the tarball), so `npm ci` needs no access beyond the npm
+registry. The content scripts make requests only to `*.synchro.umontreal.ca` and
+`studium.umontreal.ca` (on the user's own logged-in session). Since 0.4.0 the popup also
+downloads public JSON data (course catalogue) with plain GET requests from
+`https://udem-plan-ton-bacc.vercel.app/donnees/`; no user data is sent, and the data is
+never executed.

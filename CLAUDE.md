@@ -5,7 +5,10 @@ Extension Chrome (Manifest V3, TypeScript) qui lit l'horaire et les examens du C
 produit un fichier ICS + une détection de conflits + un compte à rebours d'examens.
 Depuis la phase 12 (2026-09-10), elle lit aussi les échéances (quiz, devoirs) du calendrier
 StudiUM par l'API AJAX interne de Moodle, sur la session ouverte de l'étudiant.
-**Tout reste dans le navigateur : aucun serveur, aucune clé, aucune transmission.**
+**Tout reste dans le navigateur : aucun serveur, aucune clé, aucune transmission de données de
+l'étudiant.** Depuis la phase 15, l'onglet « Prochaine session » TÉLÉCHARGE le catalogue public
+de Plan ton bacc (GET de JSON sur udem-plan-ton-bacc.vercel.app, sans permission d'hôte) et
+embarque son moteur (`vendor/clientside-labs-moteur-*.tgz`, voir WORKLOG).
 
 ## À lire en premier
 
@@ -29,7 +32,8 @@ modifier le document **et** consigner le changement dans le WORKLOG.
 - **Parser sur le texte**, jamais sur les ids ou classes PeopleSoft (sauf pour localiser
   un tableau).
 - **Fixtures anonymisées** avant commit (`node scripts/scrub-fixture.mjs`).
-- Permissions minimales : `storage`, `alarms`, hosts Synchro et StudiUM uniquement
+- Permissions minimales : `storage`, `alarms`, hosts Synchro et StudiUM uniquement (le
+  catalogue de Plan ton bacc se lit par CORS ordinaire, sans permission d'hôte)
   (StudiUM depuis la phase 12 : calendrier et liste des cours ; les notes seulement avec
   l'option « Notes », désactivée par défaut — phase 13, ARCHITECTURE §8).
 - Aucune dépendance ajoutée sans une ligne de justification dans le WORKLOG.
