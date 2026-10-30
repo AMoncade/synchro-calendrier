@@ -53,11 +53,11 @@ VIE PRIVÉE
 
 Aucune donnée vous concernant n'est transmise. L'extension lit la page Synchro que vous avez ouverte vous-même, garde le résultat dans le stockage local de Chrome, et ne communique qu'avec StudiUM (avec votre propre session) et, pour l'onglet Prochaine session, avec le catalogue public de Plan ton bacc, qu'elle télécharge sans rien y envoyer. Pas de compte à créer, pas de clé, pas de statistiques d'usage. Vous effacez tout depuis le popup ou en désinstallant l'extension.
 
-Elle ne lit ni votre mot de passe ni aucune page autre que votre horaire, vos examens et le calendrier de StudiUM.
+Elle ne lit ni votre mot de passe ni aucune page autre que votre horaire, vos examens et le calendrier de StudiUM. Vos notes ne sont lues que si vous activez l'option « Notes », et restent sur votre ordinateur. Extension non officielle, sans lien avec l'Université de Montréal.
 
 PROCHAINE SESSION
 
-Un onglet propose environ cinq cours pour le trimestre suivant, cochés d'avance et chacun avec sa raison (obligatoire, débloque tel cours, offert seulement à l'hiver). Cochez ou décochez : les crédits, les horaires possibles sans conflit et la grille de la semaine se recalculent tout de suite. Au premier lancement, vous choisissez votre programme et cochez les cours déjà réussis ; rien n'est coché d'avance. Les cours et horaires viennent de Plan ton bacc, d'après les pages publiques d'admission.umontreal.ca ; un cours sans horaire publié est marqué « horaire inconnu », jamais « sans conflit ». Vos notes ne sont lues que si vous activez l'option « Notes », et restent sur votre ordinateur. Extension non officielle, sans lien avec l'Université de Montréal.
+Un onglet propose environ cinq cours pour le trimestre suivant, cochés d'avance et chacun avec sa raison (obligatoire, débloque tel cours, offert seulement à l'hiver). Cochez ou décochez : les crédits, les horaires possibles sans conflit et la grille de la semaine se recalculent tout de suite. Au premier lancement, vous choisissez votre programme et cochez les cours déjà réussis ; rien n'est coché d'avance. Les cours et horaires viennent de Plan ton bacc, d'après les pages publiques d'admission.umontreal.ca ; un cours sans horaire publié est marqué « horaire inconnu », jamais « sans conflit ».
 
 LIMITES CONNUES
 
@@ -199,6 +199,13 @@ téléversement, la première étant l'image mise en avant :
 5. **Demain** — bascule automatique en soirée.
 6. **Notes** — carnet StudiUM par cours avec la moyenne du groupe, option désactivée par
    défaut.
+7. **Prochaine session** (0.4.0) — cours proposés pour l'Hiver 2027, cochés d'avance, chacun
+   avec sa raison.
+8. **Horaires possibles** (0.4.0) — grille de la semaine, « 1 horaire sans conflit · 1/2 ».
+
+Le store n'accepte que **5 captures**. Pour la 0.4.0, dans l'ordre : 7, 8, 1, 3, 6 (Détail
+d'un cours, Demain et Semaine sortent). 7 et 8 viennent du même gabarit, sur la fixture réelle
+du bacc en mathématiques (Statistique) : capture 1389 × 868 réduite par `npm run store-shots`.
 
 Refaites le 2026-09-10 sur le build 0.3.0 (gabarit : popup servi hors extension, `chrome.*`
 remplacé, horloge figée, capture 1152 × 720 mise au format par `npm run store-shots`).
